@@ -2,6 +2,7 @@ from connection import Connection
 from collections import deque
 import redis, json
 import random, thread
+import sys
 
 class Worker(object):
     def __init__(self):
@@ -47,9 +48,9 @@ class Worker(object):
             if m[1] == "JOIN":
                 if nick.lower() == self.nick.lower(): pass
                 else: self.push('JOIN', nick=nick, chan=m[2])
-            elif m[1] == "PART":
+            elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
-                else: self.push('PART', nick=nick, chan=m[2])
+                else: self.push('PART', nick=nick, chan=m[2], msg="")
             elif m[1] == "PRIVMSG":
                 m = msg.split(' ', 3)
                 dest = m[2]
@@ -66,12 +67,16 @@ class Worker(object):
                 except: print 'Error loading json...'
                 if m['tag'] == "LEAVE":
                     for i in m['chans']:
-                        self.c.write('PART #%s %s' % (i, m['msg']))
+                        self.c.write('PART %s %s' % (i, m['msg']))
                 elif m['tag'] == "JOIN":
                     for i in m['chans']:
-                        self.c.write('JOIN #%s' % i)
+                        self.c.write('JOIN %s' % i)
                 elif m['tag'] == "SHUTDOWN":
                     self.quit("Bot is shutting down...", True)
+                elif m['tag'] == "PING":
+                    self.push('PONG')
+                elif m['tag'] == "MSG":
+                    self.c.write('PRIVMSG %s :%s' % (m['chan'], m['msg'])) 
         self.sub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
@@ -87,13 +92,12 @@ class Worker(object):
                     print i
                     self.parse(i)
 
-    def quit(self, reason="Bot is leaving...", dc=False):
-        if dc:
-            for chan in self.channels:
-                self.c.write('PART %s %s' % (chan, reason))
-        self.c.write('DISCONNECT')
+    def quit(self, reason="Bot is leaving..."):
+        self.c.write('QUIT :%s' % reason)
         self.push('BYE')
         self.active = False
+        sys.exit()
+        #self.red.disconnect()
 
     def boot(self):
         print 'Attempting to boot worker...'

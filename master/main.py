@@ -1,5 +1,6 @@
-import redis, json
+import redis, json, thread, time
 from collections import deque #Deque is not required, it just makes things cleaner/nicer
+from api import A
 
 red = redis.Redis(host="hydr0.com", password="")
 sub = red.pubsub()
@@ -8,11 +9,28 @@ server = "irc.esper.net"
 channels = ["B0tT3st3r", "Testy1"]
 workers = {} #@TODO Ping workers to keep this in sync
 
+def write(chan, msg):
+    for i in workers.values():
+        if chan.strip('#') in i.channels:
+            i.write(chan, msg)
+A.write = write
+
+def pingloop():
+    lastPing = time.time()
+    while True:
+        if time.time()-lastPing < 120: time.sleep(5)
+        else:
+            for i in workers.values():
+                i.send("PING")
+                thread.start_new_thread(i.waitForPong, ())
+
 class Channel(object):
     def __init__(self, name):
         self.name = name
         self.nicks = {}
         self.topic = ""
+
+    def isAdmin(): pass
 
     def addByName(self, name):
         if not isinstance(name, list):
@@ -66,6 +84,11 @@ class Worker(object):
             del workers[self.id]
         elif m['tag'] == "MSG":
             print 'MSG: %s >> %s | %s' % (m['nick'], m['dest'], m['msg'])
+            if A.parse(self, m): return
+            if m['dest'].startswith('#'):
+                A.fireHook('chanmsg', chan=m['dest'], user=m['nick'], msg=m['msg'], m=m['msg'].split(' '))
+            else:
+                A.fireHook('privmsg', user=m['nick'], msg=m['msg'], m=m['msg'].split(' '))
         elif m['tag'] == "NAMES":
             print 'NAMES: %s' % m['nicks']
             self.chans[m['chan']].addByName(m['nicks'])
@@ -73,16 +96,23 @@ class Worker(object):
             print 'TOPIC: %s' % m['topic']
             self.chans[m['chan']].topic = m['topic']
         elif m['tag'] == "JOIN":
+            A.fireHook('join', user=m['nick'], chan=m['chan'])
             print 'JOIN: %s' % m['nick']
             self.chans[m['chan']].addByNick(m['nick'])
         elif m['tag'] == "PART":
+            A.fireHook('part', user=m['nick'], chan=m['chan'], msg=m['msg'])
             print 'PART: %s' % m['nick']
             self.chans[m['chan']].rmvByNick(m['nick'])
         elif m['tag'] == "READY":
             self.ready = True
             w.getChannels()
+        elif m['TAG'] == "PONG":
+            self.waitingForPong = False
         else:
             print m
+
+    def write(self, chan, msg):
+        self.send('MSG', chan=chan, msg=msg) 
 
     def send(self, tag, **kwargs):
         kwargs['tag'] = tag
@@ -104,13 +134,13 @@ class Worker(object):
 
     def addChannel(self, chans): #Chans is a list
         self.channels += chans
-        self.send("JOIN", chans=chans)
+        self.send("JOIN", chans=['#'+i for i in chans])
         self.refreshChans()
 
     def rmvChannel(self, chan):
         if chan in self.channels:
             self.channels.pop(self.channels.index(chan))
-        self.send("LEAVE", chans=[chan], msg="Bot swap...")
+        self.send("LEAVE", chans=['#'+chan], msg="Bot swap...")
 
     def getChannels(self):
         global channels, workers
@@ -130,20 +160,36 @@ class Worker(object):
         while time.time()-st < 20: #Wait ten seconds for the bot to connect
             if self.ready: return
             time.sleep(.5)
+        print "Bot failed to get ready!"
         self.kill()
 
-try:
-    sub.subscribe('irc.master')
-    while True:
-        for msg in sub.listen():
-            #print msg #@DEV Debug
-            m = json.loads(msg['data'])
-            if m['tag'] == 'HI':
-                w = Worker()
-                w.setup(m['resp'])
-                #red.publish(m['resp'], json.dumps({'id':w.id, 'chan')
-            else:
-                workers[m['id']].parse(m)
-    sub.unsubscribe('irc.master')
-except:
-    red.publish('irc.worker', json.dumps({'TAG':'SHUTDOWN'}))
+    def waitForPong(self):
+        st = time.time()
+        self.waitingForPong = True
+        while time.time()-st < 15:
+            time.sleep(.5)
+            if not self.waitngForPong: return
+        print 'Worker PONG timed out!'
+        self.kill()
+
+if __name__ == '__main__':
+    thread.start_new_thread(pingloop, ())
+    A.loadMods()
+    try:
+        sub.subscribe('irc.master')
+        while True:
+            for msg in sub.listen():
+                #print msg #@DEV Debug
+                m = json.loads(msg['data'])
+                if m['tag'] == 'HI':
+                    w = Worker()
+                    w.setup(m['resp'])
+                    thread.start_new_thread(w.waitForReady, ())
+                    #red.publish(m['resp'], json.dumps({'id':w.id, 'chan')
+                else:
+                    workers[m['id']].parse(m)
+    except KeyboardInterrupt:
+        for i in workers.values():
+            i.send("SHUTDOWN")
+    finally:
+        sub.unsubscribe('irc.master')
