@@ -18,11 +18,13 @@ A.write = write
 def pingloop():
     lastPing = time.time()
     while True:
-        if time.time()-lastPing < 120: time.sleep(5)
+        if time.time()-lastPing < 60: 
+            time.sleep(5)
         else:
             for i in workers.values():
                 i.send("PING")
                 thread.start_new_thread(i.waitForPong, ())
+            lastPing = time.time()
 
 class Channel(object):
     def __init__(self, name):
@@ -168,7 +170,7 @@ class Worker(object):
         self.waitingForPong = True
         while time.time()-st < 15:
             time.sleep(.5)
-            if not self.waitngForPong: return
+            if not self.waitingForPong: return
         print 'Worker PONG timed out!'
         self.kill()
 
