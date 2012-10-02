@@ -59,12 +59,15 @@ class Worker(object):
         
     def redloop(self):
         print 'Looping redis'
-        self.sub.subscribe("irc.worker.%s" % self.id)
+        self.rsub = self.red.pubsub()
+        self.rsub.subscribe("irc.worker.%s" % self.id)
         while self.active:
-            for msg in self.sub.listen():
+            for msg in self.rsub.listen():
                 print ">>>", msg
                 try: m = json.loads(msg['data'])
-                except: print 'Error loading json...'
+                except: 
+                    print msg
+                    continue
                 if m['tag'] == "LEAVE":
                     for i in m['chans']:
                         self.c.write('PART %s %s' % (i, m['msg']))
@@ -77,7 +80,7 @@ class Worker(object):
                     self.push('PONG')
                 elif m['tag'] == "MSG":
                     self.c.write('PRIVMSG %s :%s' % (m['chan'], m['msg'])) 
-        self.sub.unsubscribe("irc.worker.%s" % self.id)
+        self.rsub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
         print 'Connecting...'
@@ -106,7 +109,10 @@ class Worker(object):
         self.push("HI", resp=resp)
         while True:
             for msg in self.sub.listen():
-                obj = json.loads(msg['data'])
+                try: obj = json.loads(msg['data'])
+                except:
+                    print msg
+                    continue
                 self.__dict__.update(obj)
                 print 'Got worker info:', obj
                 break

@@ -71,11 +71,12 @@ class API(object):
                 if b['f'] == func:
                     self.hooks[a].pop(self.hooks[a].index(b))
 
-    def loadMods(self):
+    def loadMods(self, plugins=[]):
         print "--Loading mods--"
         for i in os.listdir('mods'):
             if not i.startswith('_') and i.endswith('.py'):
                 i = i.split('.py')[0]
+                if plugins and i not in plugins: continue
                 __import__('mods.%s' % i)
                 self.load(i)
         print "--DONE--"      

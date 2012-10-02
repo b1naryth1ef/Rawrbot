@@ -5,8 +5,9 @@ from api import A
 red = redis.Redis(host="hydr0.com", password="")
 sub = red.pubsub()
 
-server = "irc.esper.net"
-channels = ["B0tT3st3r", "Testy1"]
+server = "irc.quakenet.org"
+channels = ["b0tt3st"]
+plugins = ['web']
 workers = {} #@TODO Ping workers to keep this in sync
 
 def write(chan, msg):
@@ -108,7 +109,7 @@ class Worker(object):
         elif m['tag'] == "READY":
             self.ready = True
             w.getChannels()
-        elif m['TAG'] == "PONG":
+        elif m['tag'] == "PONG":
             self.waitingForPong = False
         else:
             print m
@@ -176,13 +177,16 @@ class Worker(object):
 
 if __name__ == '__main__':
     thread.start_new_thread(pingloop, ())
-    A.loadMods()
+    A.loadMods(plugins)
     try:
         sub.subscribe('irc.master')
         while True:
             for msg in sub.listen():
                 #print msg #@DEV Debug
-                m = json.loads(msg['data'])
+                try: m = json.loads(msg['data'])
+                except: 
+                    print msg
+                    continue
                 if m['tag'] == 'HI':
                     w = Worker()
                     w.setup(m['resp'])
