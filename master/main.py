@@ -3,7 +3,7 @@ from collections import OrderedDict
 from api import A
 
 red = redis.Redis(host="hydr0.com", password="")
-plugins = ['web']
+plugins = ['bridge']
 
 class Channel(object): #ASSUME WE HAVE #
     def __init__(self, network, name, topic=""):
@@ -40,8 +40,13 @@ class Network(object):
         self.name = name
         self.master = master
 
-        self.channels = OrderedDict([(i, Channel(self, i)) for i in channels]) #NAME :> CHANNEL
+        self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
         self.workers = {}
+
+    def write(self, chan, msg=""):
+        for i in self.workers.values():
+            if chan in i.channels:
+                return i.write(chan, msg)
 
     def addWorker(self, worker):
         self.workers[worker.id] = worker
@@ -88,11 +93,14 @@ class Worker(object):
         thread.start_new_thread(self.waitForReady, ())
 
     def getChan(self, name):
-        return self.network.channels[name]
+        if name in self.network.channels:
+            return self.network.channels[name]
+        else:
+            print name
 
     def parse(self, m):
         if 'chan' in m.keys():
-            m['chan'] = m['chan'].replace('#', '')
+            m['chan'] = m['chan'].replace('#', '').lower()
 
         if m['tag'] == "BYE": 
             self.kill()
@@ -133,10 +141,15 @@ class Worker(object):
             for i in self.network.channels.values():
                 self.joinChannel(i)
 
-    def write(self, chan, msg): 
+    def write(self, chan, msg):
         if isinstance(chan, Channel):
             chan = chan.name
-        self.push('MSG', chan='#'+chan, msg=msg) 
+        if chan in self.channels:
+            print 'Pushing: %s -> %s' % ('#'+chan, msg)
+            self.push('MSG', chan='#'+chan, msg=msg) 
+        else:
+            print 'NO WORKIE:', chan, self.channels
+            self.network.write(chan, msg)
 
     def push(self, tag, **kwargs):
         kwargs['tag'] = tag
@@ -175,12 +188,13 @@ class Master(object):
     def __init__(self):
         self.active = True
         self.networks = {
-            #'quakenet':Network(1, 'irc.quakenet.org', self, ['b0tt3st']),
-            'esper':Network(2, 'irc.esper.net', self, ['b0tt3st', 'Testy1', 'Testy2', 'Testy3'])
+            'quakenet':Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
+            #'esper':Network(2, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
         }
         self.workers = {}
 
         self.A = A
+        self.A.master = self
         self.A.loadMods(plugins)
 
         thread.start_new_thread(self.pingLoop, ())

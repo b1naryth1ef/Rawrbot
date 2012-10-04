@@ -28,6 +28,7 @@ class FiredEvent(object):
 
 class API(object):
     def __init__(self):
+        self.master = None
         self.prefix = "!"
         self.mods = {}
         self.hooks = {}

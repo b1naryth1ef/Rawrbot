@@ -10,13 +10,14 @@ class Worker(object):
         self.nick = ""
         self.channels = []
         self.server = ""
+        self.ready = False
+        self.readyq = deque()
 
         self.c = Connection()
         self.red = redis.Redis(host="hydr0.com", password="")
         self.sub = self.red.pubsub()
 
         self.nickq = {}
-        self.sends = deque()
 
         try:
             self.boot()
@@ -50,13 +51,17 @@ class Worker(object):
                 else: self.push('JOIN', nick=nick, chan=m[2])
             elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
-                else: self.push('PART', nick=nick, chan=m[2], msg="")
+                else: self.push('PART', nick=nick, chan=m[2].split(':')[0], msg="")
             elif m[1] == "PRIVMSG":
                 m = msg.split(' ', 3)
                 dest = m[2]
                 msg = m[3][1:]
                 self.push("MSG", dest=dest, msg=msg, nick=nick, host=host)
         
+    def write(self, *args, **kwargs):
+        if not self.ready: self.readyq.append((args, kwargs))
+        self.c.write(*args, **kwargs)
+
     def redloop(self):
         print 'Looping redis'
         self.rsub = self.red.pubsub()
@@ -69,15 +74,15 @@ class Worker(object):
                     print msg
                     continue
                 if m['tag'] == "LEAVE":
-                    self.c.write('PART %s %s' % (m['chan'], m['msg']))  
+                    self.write('PART %s %s' % (m['chan'], m['msg']))  
                 elif m['tag'] == "JOIN":
-                    self.c.write('JOIN %s' % m['chan'])
+                    self.write('JOIN %s' % m['chan'])
                 elif m['tag'] == "SHUTDOWN":
                     self.quit("Bot is shutting down...", True)
                 elif m['tag'] == "PING":
                     self.push('PONG')
                 elif m['tag'] == "MSG":
-                    self.c.write('PRIVMSG %s :%s' % (m['chan'], m['msg'])) 
+                    self.write('PRIVMSG %s :%s' % (m['chan'], m['msg'])) 
         self.rsub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
@@ -86,6 +91,11 @@ class Worker(object):
         self.c.nick = self.nick
         self.c.connect(self.channels)
         self.push('READY')
+        self.ready = True
+        while len(self.readyq):
+            i = self.readyq.popleft()
+            self.c.write(*i[0], **i[1])
+
         while self.active:
             l = self.c.read()
             for i in l.split('\r\n'):
@@ -94,7 +104,7 @@ class Worker(object):
                     self.parse(i)
 
     def quit(self, reason="Bot is leaving..."):
-        self.c.write('QUIT :%s' % reason)
+        self.write('QUIT :%s' % reason)
         self.push('BYE')
         self.active = False
         sys.exit()
