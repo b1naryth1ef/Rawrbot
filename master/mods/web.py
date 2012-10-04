@@ -1,4 +1,5 @@
-from api import A, Cmd, Hook
+from api import Cmd, Hook, A
+
 from mechanize import Browser
 import re
 
@@ -22,7 +23,7 @@ def chanmsgHook(obj):
 						i = "http://"+i
 					br.open(i)
 					if not br.title(): continue
-					A.write(obj.chan, "%s: %s" % (i, br.title()))
+					obj.w.write(obj.chan, "%s: %s" % (i, br.title()))
 				except: pass
 
 def onLoad(): pass

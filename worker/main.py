@@ -24,7 +24,7 @@ class Worker(object):
             thread.start_new_thread(self.ircloop, ())
             self.redloop()
         except:
-            self.quit()
+           self.quit()
 
     def parse(self, msg):
         m = msg.split(' ', 2)
@@ -69,11 +69,9 @@ class Worker(object):
                     print msg
                     continue
                 if m['tag'] == "LEAVE":
-                    for i in m['chans']:
-                        self.c.write('PART %s %s' % (i, m['msg']))
+                    self.c.write('PART %s %s' % (m['chan'], m['msg']))  
                 elif m['tag'] == "JOIN":
-                    for i in m['chans']:
-                        self.c.write('JOIN %s' % i)
+                    self.c.write('JOIN %s' % m['chan'])
                 elif m['tag'] == "SHUTDOWN":
                     self.quit("Bot is shutting down...", True)
                 elif m['tag'] == "PING":

@@ -1,4 +1,4 @@
-from api import A, Cmd, Hook
+from api import Cmd, Hook, A
 
 __NAME__ = "Bridge"
 __VERSION__ = 0.1
