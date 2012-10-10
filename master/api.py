@@ -29,6 +29,7 @@ class FiredEvent(object):
 class API(object):
     def __init__(self):
         self.master = None
+        self.red = None
         self.prefix = "!"
         self.mods = {}
         self.hooks = {}
@@ -39,7 +40,7 @@ class API(object):
 
     def parse(self, w, m):
         if m['msg'].startswith(self.prefix):
-            c = m['msg'][len(self.prefix):]
+            c = m['msg'].split(' ')[0][len(self.prefix):]
             if c in self.commands.keys():
                 c = self.commands[c]
                 if c['admin'] is True and not m['host'].split('@')[-1] in admins: return
@@ -48,6 +49,7 @@ class API(object):
                     msg=m['msg'],
                     user=m['nick'],
                     dest=m['dest'],
+                    w=w,
                     m=m['msg'].split(' ')),))
                 return True
 

@@ -28,7 +28,6 @@ for i in c.bridges:
     if i['from'] in key[i['server']]: key[i['server']][i['from']].append(i['to'])
     else: key[i['server']][i['from']] = [i['to']]
 
-
 @Hook('chanmsg')
 def chanmsgHook(obj):
     print obj.chan.lower(), obj.w.network.id, key

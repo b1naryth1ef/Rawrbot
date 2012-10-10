@@ -12,6 +12,10 @@ options = {
 
 br = Browser()
 
+@Cmd('test')
+def test(obj):
+	obj.w.write(obj.dest, '%s: %s' % (obj.user, ' '.join(obj.m[1:])))
+
 @Hook('chanmsg')
 def chanmsgHook(obj):
 	if '.' in obj.msg: #Dont regex search everything plz

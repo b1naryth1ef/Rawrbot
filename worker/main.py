@@ -9,6 +9,7 @@ class Worker(object):
         self.id = -1
         self.nick = ""
         self.channels = []
+        self.idles = []
         self.server = ""
         self.ready = False
         self.readyq = deque()
@@ -34,33 +35,51 @@ class Worker(object):
             if m[1] == "353": #NAMES
                 m = m[2].split(' ', 3)
                 chan = m[2]
+                if chan in self.idles: return
                 nicks = m[3][1:].split(' ')
                 if chan not in self.nickq.keys(): self.nickq[chan] = nicks
                 else: self.nickq[chan] += nicks
             elif m[1] == "366": #END OF NAMES
                 m = m[2].split(' ', 2)
+                if m[1] in self.idles: return
                 self.push('NAMES', chan=m[1], nicks=self.nickq[m[1]])
             elif m[1] == "332": #TOPIC
                 m = msg.split(' ')
+                if m[1] in self.idles: return
                 self.push('TOPIC', chan=m[3], topic=m[-1][1:])
         else:
             nick, host = m[0].split('!')
             nick = nick[1:]
             if m[1] == "JOIN":
+                if m[2] in self.idles: return
                 if nick.lower() == self.nick.lower(): pass
                 else: self.push('JOIN', nick=nick, chan=m[2])
             elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
-                else: self.push('PART', nick=nick, chan=m[2].split(':')[0], msg="")
+                else: 
+                    chan = m[2].split(':')[0]
+                    if chan in self.idles: return
+                    self.push('PART', nick=nick, chan=chan, msg="")
             elif m[1] == "PRIVMSG":
                 m = msg.split(' ', 3)
                 dest = m[2]
                 msg = m[3][1:]
+                if dest in self.idles: return
                 self.push("MSG", dest=dest, msg=msg, nick=nick, host=host)
         
     def write(self, *args, **kwargs):
         if not self.ready: self.readyq.append((args, kwargs))
         self.c.write(*args, **kwargs)
+
+    def join(self, chan, idle=False):
+        if idle: self.idles.append(chan)
+        else: self.channels.append(chan)
+        self.write('JOIN %s' % chan)
+
+    def part(self, chan, msg="Leaving"):
+        if chan in self.idles: self.idles.pop(self.idles.index(chan))
+        else: self.channels.pop(self.channels.index(chan))
+        self.write('PART %s :%s' % (chan, msg))  
 
     def redloop(self):
         print 'Looping redis'
@@ -73,16 +92,15 @@ class Worker(object):
                 except: 
                     print msg
                     continue
-                if m['tag'] == "LEAVE":
-                    self.write('PART %s %s' % (m['chan'], m['msg']))  
-                elif m['tag'] == "JOIN":
-                    self.write('JOIN %s' % m['chan'])
-                elif m['tag'] == "SHUTDOWN":
-                    self.quit("Bot is shutting down...", True)
-                elif m['tag'] == "PING":
-                    self.push('PONG')
+                if m['tag'] == "PART": self.part(m['chan'], m['msg'])
+                elif m['tag'] == "JOIN": self.join(m['chan'], idle=m['idle'])
+                elif m['tag'] == "SHUTDOWN": self.quit("Bot is shutting down...")
+                elif m['tag'] == "PING": self.push('PONG')
                 elif m['tag'] == "MSG":
-                    self.write('PRIVMSG %s :%s' % (m['chan'], m['msg'])) 
+                    print m
+                    if not m['chan'].startswith('#'): m['chan'] = '#'+m['chan']
+                    print 'PRIVMSG %s :%s' % (m['chan'], m['msg'])
+                    self.write('PRIVMSG %s :%s' % (m['chan'], m['msg']))
         self.rsub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
@@ -130,6 +148,7 @@ class Worker(object):
     def push(self, tag, **kwargs): #Push a message to master
         kwargs['tag'] = tag
         kwargs['id'] = self.id
+        if tag != 'HI': kwargs['nid'] = self.nid
         self.red.publish("irc.master", json.dumps(kwargs))
 
 w = Worker()
