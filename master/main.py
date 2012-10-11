@@ -1,9 +1,22 @@
 import redis, json, thread
 from collections import OrderedDict, deque
 from api import A
+from data import ConfigFile
 import sys, os, time
 
+default_cfg = {
+  'servers':
+    [
+      {
+        'host':'irc.quakenet.org',
+        'chans':['b0tt3st', 'Testy1', 'B1naryTh1ef'],
+        'auth':''
+      }
+    ]
+}
+
 red = redis.Redis(host="hydr0.com", password="")
+cfg = ConfigFile(name="main", default=default_cfg)
 plugins = ['web', 'util']
 
 class Channel(object): #ASSUME WE HAVE #
@@ -36,11 +49,12 @@ class Channel(object): #ASSUME WE HAVE #
         self.network.write(self.name, msg)
 
 class Network(object):
-    def __init__(self, id, name, master, channels=[]):
+    def __init__(self, id, name, master, channels=[], auth=""):
         self.id = id
         self.name = name
         self.master = master
         self.nickbase = "RawrBot-"
+        self.auth = auth
 
         self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
         self.workers = {}
@@ -67,7 +81,7 @@ class Network(object):
                 else: return max(self.workers.keys())+1
             else: return 1
 
-        w = Worker(_getid(), self)
+        w = Worker(_getid(), self, auth=self.auth)
         return w
 
     def write(self, chan, msg=""):
@@ -100,9 +114,10 @@ class Network(object):
                 worker.kill()
 
 class Worker(object):
-    def __init__(self, wid, network):
+    def __init__(self, wid, network, auth=""):
         self.id = wid
         self.network = network
+        self.auth = auth
         self.A = self.network.master.A
         self.channels = []
         self.idles = []
@@ -117,10 +132,10 @@ class Worker(object):
         self.network.addWorker(self)
         red.publish(chan, json.dumps({
             'id':self.id,
-            'channels':list(self.channels),
             'nick':self.nick,
             'server':self.network.name,
-            'nid':self.network.id
+            'nid':self.network.id,
+            'auth':self.auth
         }))
         thread.start_new_thread(self.waitForReady, ())
 
@@ -222,10 +237,11 @@ class Worker(object):
 class Master(object):
     def __init__(self):
         self.active = True
-        self.networks = {
-            1:Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
-            #1:Network(1, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
-        }
+        self.networks = {}
+        netinc = 1
+        for num, i in enumerate(cfg.servers):
+            print num, i
+            self.networks[num+1] = Network(num+1, i['host'], self, i['chans'], i.get('auth', ''))
         self.workers = {}
 
         self.A = A

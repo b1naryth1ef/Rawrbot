@@ -10,6 +10,8 @@ class Connection():
         self.nick = nick
         self.port = port
 
+        self.joins = []
+
         self.alive = False
         self.connecting = False
 
@@ -31,6 +33,9 @@ class Connection():
                 self.alive = True
                 self.connecting = False
                 self.write('JOIN') #Junk message (is required sometimes, othertimes just throws an error we ignore)
+                for i in self.joins:
+                    print 'Join Msg: %s' % i
+                    self.write(i)
                 for i in autojoin:
                     self.write('JOIN #%s' % i)
                 break

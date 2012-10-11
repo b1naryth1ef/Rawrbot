@@ -9,12 +9,12 @@ class Worker(object):
         self.id = -1
         self.nick = ""
         self.channels = []
+        self.auth = ""
         self.idles = []
         self.server = ""
         self.ready = False
         self.readyq = deque()
 
-        self.c = Connection()
         self.red = redis.Redis(host="hydr0.com", password="")
         self.sub = self.red.pubsub()
 
@@ -107,9 +107,13 @@ class Worker(object):
 
     def ircloop(self):
         print 'Connecting...'
+        self.c = Connection()
         self.c.host = self.server
         self.c.nick = self.nick
         self.c.connect(self.channels)
+        if self.auth:
+            self.c.joins.append(self.auth)
+            self.c.joins.append('MODE %s +x' % self.nick)
         self.push('READY')
         self.ready = True
         while len(self.readyq):

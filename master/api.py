@@ -40,20 +40,20 @@ class FiredCommand(object):
         self.w.write(dest, msg)
 
 class FiredEvent(object):
-    def __init__(self, api, _name=None, **data):
+    def __init__(self, api, **data):
         self.api = api
-        self.name = name
         if 'data' in data.keys():
             data = data['data']
         self.__dict__.update(data)
+        self.data = data
         self.sess = {}
 
     def fire(self):
-        for i in self.api.hooks[name]:
-            if 'chan' in data and i['c'] != None: 
-                if data['chan'] != i['c']: continue
-            if 'nick' in data and i['u'] != None: 
-                if data['nick'] != i['u']: continue
+        for i in self.api.hooks[self._name]:
+            if 'chan' in self.data and i['c'] != None: 
+                if self.data['chan'] != i['c']: continue
+            if 'nick' in self.data and i['u'] != None: 
+                if self.data['nick'] != i['u']: continue
             thread.start_new_thread(i['f'], (self,))
         return self
 
@@ -89,27 +89,26 @@ class API(object):
                     return
                 if c['kwargs']:
                     m['kwargs'] = dict(re.findall(r'([^: ]+):([^ ]+)?', ' '.join(m['m'][1:])))
-                    for i in c['kbool']:
-                        if i not in m['kwargs']: continue
+                    for i in m['kwargs']:
+                        if i not in c['kbool']: continue
                         val = m['kwargs'][i]
                         if val.isdigit() and int(val) in [0, 1]:
                             m['kwargs'][i] = bool(int(val))
                         elif val.lower() in ['y', 'n', 'true', 'false']:
-                            m['kwargs'][i] = {'y':True, 'n':False, 'true':True, 'false':False}[val]
+                            m['kwargs'][i] = {'y':True, 'n':False, 'true':True, 'false':False}[val.lower()]
                         else: 
-                            if m['pm']: w.writeUser(obj.nick, '%s: The kwarg "%s" must be 1/0, Y/N or True/False!' % (obj.nick, i))
-                            else: w.write(obj.dest, '%s: The kwarg "%s" must be 1/0, Y/N or True/False!'  % (obj.nick, i))
+                            if m['pm']: return w.writeUser(m['nick'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!' % (m['nick'], i))
+                            else: return w.write(m['dest'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!'  % (m['nick'], i))
                 m['_name'] = 'cmd'
                 m['_cmd'] = c['f'] 
                 m['w'] = w
-                
                 FiredCommand(**m).fire()
                 return True
 
     def fireHook(self, name, **data):
         if name in self.hooks.keys():
             data['_name'] = name
-            FiredEvent(self, *data).fire()
+            FiredEvent(self, **data).fire()
             
     def addHook(self, name, func, chan=None, user=None):
         obj = {'f':func, 'c':chan, 'u':user}

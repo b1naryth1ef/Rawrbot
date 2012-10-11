@@ -8,9 +8,10 @@ class DBModelModel(Model):
         database = db
 
 class ConfigFile(object):
-    def __init__(self, name='config', default={}):
+    def __init__(self, name='config', path=[], default={}):
         self.configfile = name.replace('.cfg', '')
-        self.configpath = os.path.join('mods', self.configfile+'.cfg')
+        path.append(self.configfile+'.cfg')
+        self.configpath = os.path.join(*path)
         self.default = default
         self.config = self.load(self.default)
 
@@ -36,6 +37,7 @@ class ConfigFile(object):
         def checkDict(a, b, rmv=False):
             mark = []
             for key in a:
+                if isinstance(key, dict): continue
                 if key not in b:
                     if rmv: 
                         print 'Removing key %s' % key
