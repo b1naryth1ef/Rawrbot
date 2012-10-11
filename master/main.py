@@ -223,8 +223,8 @@ class Master(object):
     def __init__(self):
         self.active = True
         self.networks = {
-            #1:Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
-            1:Network(1, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
+            1:Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
+            #1:Network(1, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
         }
         self.workers = {}
 
