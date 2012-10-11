@@ -1,4 +1,4 @@
-import os, sys, time, thread
+import os, sys, time, thread, re
 
 admins = ['108.174.51.160', "178.79.130.209"]
 
@@ -9,22 +9,61 @@ def Hook(name, chan=None, user=None):
         return func
     return deco
 
-def Cmd(name, admin=False):
+def Cmd(name, **kwargs):
     def deco(func):
         global A
-        A.addCmd(name, func, admin)
+        A.addCmd(name, func, **kwargs)
         return func
     return deco
 
+class FiredCommand(object):
+    def __init__(self, _name=None, _cmd=None, **data):
+        self._name = _name
+        self._cmd = _cmd
+        if 'data' in data.keys():
+            data = data['data']
+        self.__dict__.update(data)
+        self.sess = {}
+
+    def fire(self):
+        thread.start_new_thread(self._cmd, (self,))
+        return self
+
+    def reply(self, msg):
+        if self.pm:
+            return self.w.writeUser(self.dest, msg)
+        self.w.write(self.dest, '%s: %s' % (self.nick, msg))
+
+    def send(self, dest, msg):
+        if self.pm:
+            return self.w.writeUser(dest, msg)
+        self.w.write(dest, msg)
+
 class FiredEvent(object):
-    def __init__(self, name, **data):
+    def __init__(self, api, _name=None, **data):
+        self.api = api
         self.name = name
         if 'data' in data.keys():
             data = data['data']
         self.__dict__.update(data)
+        self.sess = {}
+
+    def fire(self):
+        for i in self.api.hooks[name]:
+            if 'chan' in data and i['c'] != None: 
+                if data['chan'] != i['c']: continue
+            if 'nick' in data and i['u'] != None: 
+                if data['nick'] != i['u']: continue
+            thread.start_new_thread(i['f'], (self,))
+        return self
 
     def getDict(self):
         return self.__dict__
+
+# USE CASES:
+# !gtv add Blah >Zoo< 04.08.2012 22:00 CB/NC CTF
+# !gtv add Blah >Zoo<
+# !gtv set match:1337 a:Blahzy
 
 class API(object):
     def __init__(self):
@@ -35,34 +74,43 @@ class API(object):
         self.hooks = {}
         self.commands = {}
 
-    def addCmd(self, name, func, admin=False):
-        self.commands[name] = {'admin':admin, 'f':func}
+    def addCmd(self, name, func, admin=False, kwargs=False, kwargsbool=[]):
+        self.commands[name] = {'admin':admin, 'f':func, 'kwargs':kwargs, 'kbool':kwargsbool}
 
     def parse(self, w, m):
         if m['msg'].startswith(self.prefix):
-            c = m['msg'].split(' ')[0][len(self.prefix):]
-            if c in self.commands.keys():
-                c = self.commands[c]
-                if c['admin'] is True and not m['host'].split('@')[-1] in admins: return
-                thread.start_new_thread(c['f'], (FiredEvent(
-                    name='cmd',
-                    msg=m['msg'],
-                    user=m['nick'],
-                    dest=m['dest'],
-                    w=w,
-                    m=m['msg'].split(' ')),))
+            m['m'] = m['msg'].split(' ')
+            m['kwargs'] = {}
+            if m['m'][0][len(self.prefix):] in self.commands.keys():
+                c = self.commands[m['m'][0][len(self.prefix):]]
+                if m['nick'] == m['dest']: m['pm'] = True
+                else: m['pm'] = False
+                if c['admin'] is True and not m['host'].split('@')[-1] in admins: 
+                    return
+                if c['kwargs']:
+                    m['kwargs'] = dict(re.findall(r'([^: ]+):([^ ]+)?', ' '.join(m['m'][1:])))
+                    for i in c['kbool']:
+                        if i not in m['kwargs']: continue
+                        val = m['kwargs'][i]
+                        if val.isdigit() and int(val) in [0, 1]:
+                            m['kwargs'][i] = bool(int(val))
+                        elif val.lower() in ['y', 'n', 'true', 'false']:
+                            m['kwargs'][i] = {'y':True, 'n':False, 'true':True, 'false':False}[val]
+                        else: 
+                            if m['pm']: w.writeUser(obj.nick, '%s: The kwarg "%s" must be 1/0, Y/N or True/False!' % (obj.nick, i))
+                            else: w.write(obj.dest, '%s: The kwarg "%s" must be 1/0, Y/N or True/False!'  % (obj.nick, i))
+                m['_name'] = 'cmd'
+                m['_cmd'] = c['f'] 
+                m['w'] = w
+                
+                FiredCommand(**m).fire()
                 return True
 
     def fireHook(self, name, **data):
         if name in self.hooks.keys():
-            obj = FiredEvent(name, data=data)
-            for i in self.hooks[name]:
-                if 'chan' in data and i['c'] != None: 
-                    if data['chan'] != i['c']: continue
-                if 'user' in data and i['u'] != None: 
-                    if data['user'] != i['u']: continue
-                thread.start_new_thread(i['f'], (obj,))
-
+            data['_name'] = name
+            FiredEvent(self, *data).fire()
+            
     def addHook(self, name, func, chan=None, user=None):
         obj = {'f':func, 'c':chan, 'u':user}
         if name in self.hooks.keys(): self.hooks[name].append(obj)

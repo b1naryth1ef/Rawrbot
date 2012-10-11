@@ -1,1 +1,2 @@
-- Tell workers to part channels when we remove them (currently we dont tell them their not supposed to be there anymore, should be a quick deque.pop(deque.index(chan_we_are_removing)) after we send a packet of {"tag":"PART", "msg":"Bye!", "chan":"abc_123"})
+- Add multi-word (seperated by space preferably) kwargs
+- Benchmark stuff plz

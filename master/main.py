@@ -1,9 +1,10 @@
-import redis, json, thread, time
+import redis, json, thread
 from collections import OrderedDict, deque
 from api import A
+import sys, os, time
 
 red = redis.Redis(host="hydr0.com", password="")
-plugins = ['web']
+plugins = ['web', 'util']
 
 class Channel(object): #ASSUME WE HAVE #
     def __init__(self, network, name, topic=""):
@@ -44,6 +45,16 @@ class Network(object):
         self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
         self.workers = {}
         self.writes = dict([(i, deque()) for i in self.channels.keys()])
+
+    def writeGlobal(self, msg):
+        for chan in self.channels.keys():
+            self.write(chan, msg)
+
+    def hasChan(self, chan):
+        if chan.startswith('#'): chan = chan[1:]
+        if chan in self.channels.keys():
+            return True
+        return False
 
     def getWorker(self):
         #@DEV What ID are we?
@@ -126,16 +137,16 @@ class Worker(object):
             if m['nick'].startswith(self.network.nickbase): return
             if self.A.parse(self, m): return
             if m['dest'].startswith('#'):
-                self.A.fireHook('chanmsg', chan=m['dest'].replace('#', ''), user=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
+                self.A.fireHook('chanmsg', chan=m['dest'].replace('#', ''), nick=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
             else:
-                self.A.fireHook('privmsg', user=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
+                self.A.fireHook('privmsg', nick=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
         elif m['tag'] == "NAMES": self.getChan(m['chan']).addByNames(m['nicks'])
         elif m['tag'] == "TOPIC": self.getChan(m['chan']).setTopic(m['topic'])
         elif m['tag'] == "JOIN":
-            self.A.fireHook('join', user=m['nick'], chan=m['chan'], w=self)
+            self.A.fireHook('join', nick=m['nick'], chan=m['chan'], w=self)
             self.getChan(m['chan']).addByNick(m['nick'])
         elif m['tag'] == "PART":
-            self.A.fireHook('part', user=m['nick'], chan=m['chan'], msg=m['msg'], w=self)
+            self.A.fireHook('part', nick=m['nick'], chan=m['chan'], msg=m['msg'], w=self)
             self.getChan(m['chan']).rmvByNick(m['nick'])
         elif m['tag'] == "READY":
             self.ready = True
@@ -168,6 +179,9 @@ class Worker(object):
     def write(self, chan, msg):    
         self.network.write(chan, msg)
 
+    def writeUser(self, user, msg):
+        self.push('UMSG', user=user, msg=msg)
+
     def push(self, tag, **kwargs):
         kwargs['tag'] = tag
         red.publish(self.chan, json.dumps(kwargs)) #@DEV If we want, we can eventually zlib this
@@ -192,7 +206,7 @@ class Worker(object):
             self.idles.pop(self.idles.index(chan))
         else:
             self.channels.pop(self.channels.index(chan))
-        self.network.writes[chan].pop(self.network.writes[chan].index(self))
+        self.network.writes[chan].remove(self)
         self.push("PART", chan="#"+chan, msg=msg)
 
     def waitForReady(self):
@@ -209,8 +223,8 @@ class Master(object):
     def __init__(self):
         self.active = True
         self.networks = {
-            1:Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
-            #2:Network(2, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
+            #1:Network(1, 'irc.quakenet.org', self, ['b0tt3st', 'Testy1']),
+            1:Network(1, 'irc.esper.net', self, ['b0tt3st', 'Testy1'])
         }
         self.workers = {}
 
@@ -257,4 +271,6 @@ class Master(object):
                 thread.start_new_thread(i.ping, ())
             time.sleep(60)
 
-master = Master()
+if __name__ == '__main__':
+    master = Master()
+   

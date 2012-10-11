@@ -1,4 +1,11 @@
 import redis, json, os
+from peewee import Model, SqliteDatabase, MySQLDatabase
+
+db = SqliteDatabase('test.db', threadlocals=True)
+
+class DBModelModel(Model):
+    class Meta():
+        database = db
 
 class ConfigFile(object):
     def __init__(self, name='config', default={}):

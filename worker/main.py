@@ -97,10 +97,12 @@ class Worker(object):
                 elif m['tag'] == "SHUTDOWN": self.quit("Bot is shutting down...")
                 elif m['tag'] == "PING": self.push('PONG')
                 elif m['tag'] == "MSG":
-                    print m
                     if not m['chan'].startswith('#'): m['chan'] = '#'+m['chan']
-                    print 'PRIVMSG %s :%s' % (m['chan'], m['msg'])
+                    print 'PRIVMSG [%s]: %s' % (m['chan'], m['msg'])
                     self.write('PRIVMSG %s :%s' % (m['chan'], m['msg']))
+                elif m['tag'] == 'UMSG':
+                    print "USERMSG [%s]: %s" % (m['user'], m['msg'])
+                    self.write('PRIVMSG %s :%s' % (m['user'], m['msg']))
         self.rsub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
