@@ -110,10 +110,10 @@ class Worker(object):
         self.c = Connection()
         self.c.host = self.server
         self.c.nick = self.nick
-        self.c.connect(self.channels)
         if self.auth:
             self.c.joins.append(self.auth)
             self.c.joins.append('MODE %s +x' % self.nick)
+        self.c.connect(self.channels)
         self.push('READY')
         self.ready = True
         while len(self.readyq):
