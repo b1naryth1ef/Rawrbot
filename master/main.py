@@ -2,7 +2,7 @@ import redis, json, thread
 from collections import OrderedDict, deque
 from api import A
 from data import ConfigFile
-import sys, os, time
+import sys, os, time, random
 
 default_cfg = {
   'servers':
@@ -12,7 +12,8 @@ default_cfg = {
         'chans':['b0tt3st', 'Testy1', 'B1naryTh1ef'],
         'auth':''
       }
-    ]
+    ],
+  'admins':['b1naryth1ef']
 }
 
 red = redis.Redis(host="hydr0.com", password="")
@@ -57,6 +58,7 @@ class Network(object):
         self.auth = auth
 
         self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
+        self.users = {}
         self.workers = {}
         self.writes = dict([(i, deque()) for i in self.channels.keys()])
 
@@ -86,9 +88,9 @@ class Network(object):
 
     def write(self, chan, msg=""):
         if chan.startswith('#'): chan = chan[1:]
-        w = self.writes[chan].popleft()
+        w = self.writes[chan.lower()].popleft()
         w.push("MSG", chan=chan, msg=msg)
-        self.writes[chan].append(w)
+        self.writes[chan.lower()].append(w)
         print '%s -> %s' % (msg, chan)
 
     def addWorker(self, worker):
@@ -121,10 +123,22 @@ class Worker(object):
         self.A = self.network.master.A
         self.channels = []
         self.idles = []
+        self.whois = {}
 
         self.ready = False
         self.active = True
         self.waitingForPong = False
+
+    def getUserInfo(self, user): #@TODO If we call this at the same time, one function wont get the call back D:
+        chan = str(random.randint(1111, 9999))
+        self.push('UINFO', user=user, chan=chan)
+        val = red.blpop(chan, 15)
+        try:
+            val = json.loads(val[1])
+        except:
+            print "Cannot load getUserInfo!"
+            return None
+        return val
 
     def setup(self, chan):
         self.nick = "%s%s" % (self.network.nickbase, self.id)
@@ -194,7 +208,7 @@ class Worker(object):
     def write(self, chan, msg):    
         self.network.write(chan, msg)
 
-    def writeUser(self, user, msg):
+    def writeUser(self, user, msg): #@NOTE This should /never/ be random, or pms will be in different tabs for users.
         self.push('UMSG', user=user, msg=msg)
 
     def push(self, tag, **kwargs):
@@ -248,6 +262,7 @@ class Master(object):
         self.A.master = self
         self.A.red = red
         self.A.loadMods(plugins)
+        self.A.setConfig(cfg)
 
         thread.start_new_thread(self.pingLoop, ())
 
@@ -278,7 +293,7 @@ class Master(object):
 
                 if m['tag'] == 'HI': self.addWorker(m['resp'])
                 else: 
-                    self.networks[m['nid']].workers[m['id']].parse(m)
+                    thread.start_new_thread(self.networks[m['nid']].workers[m['id']].parse, (m,)) #@DEV This may /not/ need to be threaded
 
     def pingLoop(self):
         st = time.time()

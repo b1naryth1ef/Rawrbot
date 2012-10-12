@@ -23,7 +23,7 @@ def chanmsgHook(obj):
 						i = "http://"+i
 					br.open(i)
 					if not br.title(): continue
-					obj.w.write(obj.chan, "%s: %s" % (i, br.title()))
+					obj.send(obj.chan, "%s: %s" % (i, br.title()))
 				except: pass
 
 def onLoad(): pass

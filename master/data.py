@@ -1,11 +1,18 @@
 import redis, json, os
-from peewee import Model, SqliteDatabase, MySQLDatabase
+from peewee import *
 
 db = SqliteDatabase('test.db', threadlocals=True)
 
-class DBModelModel(Model):
+class DBModel(Model):
     class Meta():
         database = db
+
+class User(DBModel):
+    name = CharField()
+    host = CharField()
+    created = DateTimeField()
+    locked = BooleanField()
+User.create_table(True)
 
 class ConfigFile(object):
     def __init__(self, name='config', path=[], default={}):

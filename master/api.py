@@ -1,6 +1,5 @@
 import os, sys, time, thread, re
-
-admins = ['108.174.51.160', "178.79.130.209"]
+from data import User
 
 def Hook(name, chan=None, user=None):
     def deco(func):
@@ -17,13 +16,19 @@ def Cmd(name, **kwargs):
     return deco
 
 class FiredCommand(object):
-    def __init__(self, _name=None, _cmd=None, **data):
+    def __init__(self, _name=None, _c=None, _prefix=None, **data):
         self._name = _name
-        self._cmd = _cmd
+        self._c = _c
+        self._cmd = self._c['f']
+        self._prefix = _prefix
         if 'data' in data.keys():
             data = data['data']
         self.__dict__.update(data)
         self.sess = {}
+
+    def usage(self):
+        f = self._c['usage'].format(**{'cmd':self._name, 'bool':'true/false/0/1'})
+        self.reply(self._prefix+f)
 
     def fire(self):
         thread.start_new_thread(self._cmd, (self,))
@@ -34,9 +39,11 @@ class FiredCommand(object):
             return self.w.writeUser(self.dest, msg)
         self.w.write(self.dest, '%s: %s' % (self.nick, msg))
 
+    def privmsg(self, user, msg):
+        self.w.writeUser(user, msg)
+
     def send(self, dest, msg):
-        if self.pm:
-            return self.w.writeUser(dest, msg)
+        if self.pm: return self.privmsg(dest, msg)
         self.w.write(dest, msg)
 
 class FiredEvent(object):
@@ -67,28 +74,53 @@ class FiredEvent(object):
 
 class API(object):
     def __init__(self):
+        self.admins = []
         self.master = None
         self.red = None
         self.prefix = "!"
         self.mods = {}
         self.hooks = {}
         self.commands = {}
+        self.alias = {}
 
-    def addCmd(self, name, func, admin=False, kwargs=False, kwargsbool=[]):
-        self.commands[name] = {'admin':admin, 'f':func, 'kwargs':kwargs, 'kbool':kwargsbool}
+        self.updateAdmins()
+
+    def updateAdmins(self):
+        self.admins = [i.host for i in User.select().where(locked=False)]
+
+    def setConfig(self, cfg):
+        self.config = cfg
+
+    def addCmd(self, name, func, admin=False, kwargs=False, kwargsbool=[], usage="", alias=[]):
+        self.commands[name] = {
+            'admin':admin, 
+            'f':func, 
+            'kwargs':kwargs, 
+            'kbool':kwargsbool, 
+            'usage':usage, 
+            'alias':alias}
+        for i in alias:
+            self.alias[i] = name
+
+    def getCmd(self, cmd):
+        if cmd in self.commands.keys():
+            return self.commands[cmd]
+        elif cmd in self.alias.keys():
+            return self.commands[self.alias[cmd]]
 
     def parse(self, w, m):
         if m['msg'].startswith(self.prefix):
             m['m'] = m['msg'].split(' ')
             m['kwargs'] = {}
-            if m['m'][0][len(self.prefix):] in self.commands.keys():
-                c = self.commands[m['m'][0][len(self.prefix):]]
+            cmd = m['m'][0][len(self.prefix):]
+            c = self.getCmd(cmd)
+            if c:
                 if m['nick'] == m['dest']: m['pm'] = True
                 else: m['pm'] = False
-                if c['admin'] is True and not m['host'].split('@')[-1] in admins: 
+                if c['admin'] is True and not m['host'].split('@')[-1] in self.admins: 
                     return
                 if c['kwargs']:
-                    m['kwargs'] = dict(re.findall(r'([^: ]+):([^ ]+)?', ' '.join(m['m'][1:])))
+                    m['kwargs'] = dict(re.findall(r'([^ :]+):[ ]*(.+?)?(?:(?= [^ ]+:)|$)', ' '.join(m['m'][1:])))
                     for i in m['kwargs']:
                         if i not in c['kbool']: continue
                         val = m['kwargs'][i]
@@ -99,8 +131,9 @@ class API(object):
                         else: 
                             if m['pm']: return w.writeUser(m['nick'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!' % (m['nick'], i))
                             else: return w.write(m['dest'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!'  % (m['nick'], i))
-                m['_name'] = 'cmd'
-                m['_cmd'] = c['f'] 
+                m['_name'] = cmd
+                m['_c'] = c 
+                m['_prefix'] = self.prefix
                 m['w'] = w
                 FiredCommand(**m).fire()
                 return True

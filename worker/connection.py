@@ -36,6 +36,7 @@ class Connection():
                 for i in self.joins:
                     print 'Join Msg: %s' % i
                     self.write(i)
+                time.sleep(1) #Wait for messages to register
                 for i in autojoin:
                     self.write('JOIN #%s' % i)
                 break

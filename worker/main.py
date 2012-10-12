@@ -9,6 +9,7 @@ class Worker(object):
         self.id = -1
         self.nick = ""
         self.channels = []
+        self.whois = {}
         self.auth = ""
         self.idles = []
         self.server = ""
@@ -47,6 +48,25 @@ class Worker(object):
                 m = msg.split(' ')
                 if m[1] in self.idles: return
                 self.push('TOPIC', chan=m[3], topic=m[-1][1:])
+            elif m[1] == '311': #WHOIS user info
+                m = msg.split(' ')
+                nick = m[3]
+                host = m[5]
+                if nick.lower() in self.whois.keys():
+                    self.whois[nick.lower()]['nick'] = nick.lower()
+                    self.whois[nick.lower()]['host'] = host
+            elif m[1] == '330':
+                m = msg.split(' ')
+                nick = m[3]
+                authname = m[4]
+                if nick.lower() in self.whois.keys():
+                    self.whois[nick.lower()]['auth'] = authname
+            elif m[1] == '318': #END OF WHOIS
+                m = msg.split(' ')
+                if m[3].lower() in self.whois.keys():
+                    print 'Got end of whois, sending...'
+                    self.red.lpush(self.whois[m[3].lower()]['chank'], json.dumps(self.whois[m[3].lower()]))
+                    del self.whois[m[3].lower()]
         else:
             nick, host = m[0].split('!')
             nick = nick[1:]
@@ -87,7 +107,6 @@ class Worker(object):
         self.rsub.subscribe("irc.worker.%s" % self.id)
         while self.active:
             for msg in self.rsub.listen():
-                print ">>>", msg
                 try: m = json.loads(msg['data'])
                 except: 
                     print msg
@@ -103,6 +122,10 @@ class Worker(object):
                 elif m['tag'] == 'UMSG':
                     print "USERMSG [%s]: %s" % (m['user'], m['msg'])
                     self.write('PRIVMSG %s :%s' % (m['user'], m['msg']))
+                elif m['tag'] == 'UINFO':
+                    if m['user'] not in self.whois.keys():
+                        self.whois[m['user'].lower()] = {'chank':m['chan']}
+                        self.write('WHOIS %s' % (m['user']))
         self.rsub.unsubscribe("irc.worker.%s" % self.id)
 
     def ircloop(self):
