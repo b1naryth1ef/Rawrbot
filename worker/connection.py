@@ -48,7 +48,7 @@ class Connection():
         self.alive = False
 
     def read(self, bytes=4080): 
-        data = str(self.c.recv(bytes),"UTF-8", "replace")
+        data = unicode(self.c.recv(bytes), errors="replace")
         if DEBUG: print data
         if data: return data
         return None
