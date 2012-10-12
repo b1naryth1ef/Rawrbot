@@ -137,6 +137,13 @@ class API(object):
                 m['w'] = w
                 FiredCommand(**m).fire()
                 return True
+            else:
+                msg = "%s: Unknown command '%s'!" % (m['nick'], cmd)
+                if m['nick'] == m['dest']:
+                    w.writeUser(m['nick'], msg)
+                else:
+                    w.write(m['dest'], msg)
+                return False
 
     def fireHook(self, name, **data):
         if name in self.hooks.keys():
@@ -154,6 +161,11 @@ class API(object):
                 if b['f'] == func:
                     self.hooks[a].pop(self.hooks[a].index(b))
 
+    def hasMod(self, mod):
+        if mod in self.mods.keys():
+            return True
+        return False
+
     def loadMods(self, plugins=[]):
         print "--Loading mods--"
         for i in os.listdir('mods'):
@@ -170,11 +182,17 @@ class API(object):
         if hasattr(mod, "onLoad"): mod.onLoad()
         print "Loaded %s v%s by %s" % (mod.__NAME__, mod.__VERSION__, mod.__AUTHOR__ )
 
-    def reloadall(self):
+    def reloadAll(self, obj=None, msg=None):
+        self.hooks = {}
+        self.commands = {}
+        self.alias = {}
         for i in self.mods.keys():
             self.reload(i)
+        if obj and msg:
+            obj.reply(msg)
             
     def reload(self, i):
+        print 'Reloading %s' % i
         if hasattr(self.mods[i], "onUnload"): self.mods[i].onUnload()
         self.mods[i] = reload(self.mods[i])
         if hasattr(self.mods[i], "onLoad"): self.mods[i].onLoad()

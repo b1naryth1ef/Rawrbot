@@ -1,10 +1,10 @@
 from api import Cmd, Hook, A
 from data import ConfigFile, User
 from datetime import datetime
-import time, thread
+import time, thread, psutil, os
 
 __NAME__ = "Util"
-__VERSION__ = 0.3
+__VERSION__ = 0.4
 __AUTHOR__ = "B1naryTh1ef"
 
 default_config = {}
@@ -23,11 +23,39 @@ def loop():
 def addSpam(msg, duration, interval): pass
 def rmvSpam(id): pass
 
+#!status
+@Cmd('status', admin=True)
+def cmdStatus(obj):
+    ps = os.getloadavg()
+    pram = psutil.virtual_memory()
+    numw = len([i for i in obj.w.network.workers if i != None])
+    numc, numu = 0, []
+    for chan in obj.w.network.channels.values():
+        numc += 1
+        for i in chan.users:
+            if i.startswith('@') or i.startswith('+'): i = i[1:]
+            if i.lower() not in numu:
+                numu.append(i.lower())
+    numu = len(numu)
+    obj.reply('Current RawrBot Status:')
+    obj.reply('  # of workers: %s' % numw)
+    obj.reply('  # of channels: %s' % numc)
+    obj.reply('  # of users: %s' % numu)
+    obj.reply('  cpu usage: %s' % str(psutil.cpu_percent())+'%')
+    obj.reply('  memory usage: %s' % str(pram.percent)+'%')
+    obj.reply('  system load: %.2f %.2f %.2f' % ps)
+    obj.reply('End RawrBot Status')
+
 #!reload
 @Cmd('reload', admin=True)
 def cmdReload(obj):
+    if len(obj.m) > 1:
+        if A.hasMod(obj.m[1]):
+            obj.reply('Reloading %s' % obj.m[1])
+            A.reload(obj.m[1])
+            obj.reply('Done reloading %s' % obj.m[1])
     obj.reply("Reloading all mods...")
-    A.reloadAll()
+    A.reloadAll(obj=obj, msg="Reloaded!")
 
 #!register user
 @Cmd('register', admin=True)

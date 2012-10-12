@@ -1,7 +1,7 @@
 import sys, os, time
 import socket
 
-DEBUG = True
+DEBUG = False
 
 class Connection():
     def __init__(self, host=None, nick=None, port=6667):

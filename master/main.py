@@ -60,7 +60,6 @@ class Network(object):
         self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
         self.users = {}
         self.workers = {}
-        self.writes = dict([(i, deque()) for i in self.channels.keys()])
 
     def writeGlobal(self, msg):
         for chan in self.channels.keys():
@@ -88,9 +87,10 @@ class Network(object):
 
     def write(self, chan, msg=""):
         if chan.startswith('#'): chan = chan[1:]
-        w = self.writes[chan.lower()].popleft()
-        w.push("MSG", chan=chan, msg=msg)
-        self.writes[chan.lower()].append(w)
+        for w in self.workers.values():
+            print w.channels, chan
+            if chan in w.channels:
+                w.push("MSG", chan=chan, msg=msg)
         print '%s -> %s' % (msg, chan)
 
     def addWorker(self, worker):
@@ -122,7 +122,6 @@ class Worker(object):
         self.auth = auth
         self.A = self.network.master.A
         self.channels = []
-        self.idles = []
         self.whois = {}
 
         self.ready = False
@@ -185,22 +184,14 @@ class Worker(object):
 
     def getChannels(self): #@TODO Implement more bots per channel
         num = (len(self.network.channels)/len(self.network.workers))
-        num2 = num
 
         if len(self.network.workers) > 1:
-            while num >= -num2:
-                for i in self.network.workers.values():
-                    if i != self and i != None:
-                        if num > 0:
-                            c = i.channels[0]
-                            i.partChannel(c)
-                            self.joinChannel(c)
-                            num -= 1
-                        elif num >= -num2:
-                            c = i.channels[0]
-                            self.joinChannel(c, idle=True)
-                            num -=1
-
+            for i in self.network.workers.values():
+                if num and i != self and i != None and len(i.channels) > 1:
+                    c = i.channels[0]
+                    i.partChannel(c)
+                    self.joinChannel(c)
+                    num -= 1
         else:
             for i in self.network.channels.values():
                 self.joinChannel(i)
@@ -220,22 +211,16 @@ class Worker(object):
         self.network.rmvWorker(self.id)
         self.active = False
 
-    def joinChannel(self, chan, idle=False):
-        if isinstance(chan, Channel):
-            chan = chan.name       
-        if idle:  self.idles.append(chan)
-        else: self.channels.append(chan)
-        self.network.writes[chan].append(self)
-        self.push("JOIN", chan="#"+chan, idle=idle)
-
-    def partChannel(self, chan, msg="Bot Swap...", idle=False):
+    def joinChannel(self, chan):
         if isinstance(chan, Channel):
             chan = chan.name
-        if idle:
-            self.idles.pop(self.idles.index(chan))
-        else:
-            self.channels.pop(self.channels.index(chan))
-        self.network.writes[chan].remove(self)
+        self.channels.append(chan)
+        self.push("JOIN", chan="#"+chan)
+
+    def partChannel(self, chan, msg="Bot Swap..."):
+        if isinstance(chan, Channel):
+            chan = chan.name
+        self.channels.pop(self.channels.index(chan))
         self.push("PART", chan="#"+chan, msg=msg)
 
     def waitForReady(self):
@@ -249,7 +234,10 @@ class Worker(object):
         self.push('PING')
 
 class Master(object):
-    def __init__(self):
+    def __init__(self): pass
+
+    def boot(self, Q):
+        self.procQ = Q
         self.active = True
         self.networks = {}
         netinc = 1
@@ -300,8 +288,8 @@ class Master(object):
         while self.active:
             for i in self.networks.values():
                 thread.start_new_thread(i.ping, ())
-            time.sleep(60)
+            time.sleep(20)
 
 if __name__ == '__main__':
-    master = Master()
+    print 'Please use start.py'
    
