@@ -25,7 +25,9 @@ def rmvSpam(id): pass
 
 #!reload
 @Cmd('reload', admin=True)
-def cmdReload(obj): pass
+def cmdReload(obj):
+    obj.reply("Reloading all mods...")
+    A.reloadAll()
 
 #!register user
 @Cmd('register', admin=True)
