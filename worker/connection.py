@@ -1,7 +1,7 @@
 import sys, os, time
 import socket
 
-DEBUG = False
+DEBUG = True
 
 class Connection():
     def __init__(self, host=None, nick=None, port=6667):
@@ -48,7 +48,7 @@ class Connection():
         self.alive = False
 
     def read(self, bytes=4080): 
-        data = self.c.recv(bytes)
+        data = str(self.c.recv(bytes),"UTF-8", "replace")
         if DEBUG: print data
         if data: return data
         return None
