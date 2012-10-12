@@ -190,7 +190,7 @@ class Worker(object):
         if len(self.network.workers) > 1:
             while num >= -num2:
                 for i in self.network.workers.values():
-                    if i != self:
+                    if i != self and i != None:
                         if num > 0:
                             c = i.channels[0]
                             i.partChannel(c)
