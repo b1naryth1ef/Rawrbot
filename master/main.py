@@ -10,7 +10,7 @@ default_cfg = {
       {
         'host':'irc.quakenet.org',
         'chans':['b0tt3st', 'Testy1', 'B1naryTh1ef'],
-        'auth':''
+        'auth':'',
       }
     ],
   'admins':['b1naryth1ef']
@@ -88,9 +88,8 @@ class Network(object):
     def write(self, chan, msg=""):
         if chan.startswith('#'): chan = chan[1:]
         for w in self.workers.values():
-            print w.channels, chan
-            if chan in w.channels:
-                w.push("MSG", chan=chan, msg=msg)
+            if chan.lower() in w.channels:
+                w.push("MSG", chan=chan.lower(), msg=msg)
         print '%s -> %s' % (msg, chan)
 
     def addWorker(self, worker):

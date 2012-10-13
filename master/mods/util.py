@@ -1,20 +1,36 @@
 from api import Cmd, Hook, A
-from data import ConfigFile, User
-from datetime import datetime
+from data import ConfigFile, User, DBModel
+from datetime import datetime, timedelta
 import time, thread, psutil, os
+from peewee import CharField, IntegerField, DateTimeField, BooleanField
 
 __NAME__ = "Util"
-__VERSION__ = 0.4
+__VERSION__ = 0.5
 __AUTHOR__ = "B1naryTh1ef"
 
-default_config = {}
+default_config = {
+    'report_channels':['b0tt3st']
+}
 config = ConfigFile(name="util", path=['mods', 'config'], default=default_config)
 
 logged_in = [] #(host, time)
 LOOPING = False
 
-def userQ(**kwargs):
-    return [i for i in User.select().where(**kwargs)]
+class AdminMessage(DBModel):
+    nick = CharField()
+    chan = CharField()
+    kind = CharField()
+    message = CharField()
+    network = IntegerField()
+    created = DateTimeField()
+    active = BooleanField()
+AdminMessage.create_table(True)
+
+def userQ(*args, **kwargs):
+    return [i for i in User.select().where(*args, **kwargs)]
+
+def msgQ(*args, **kwargs):
+    return [i for i in AdminMessage.select().where(*args, **kwargs)]
 
 def loop():
     while LOOPING:
@@ -22,6 +38,76 @@ def loop():
 
 def addSpam(msg, duration, interval): pass
 def rmvSpam(id): pass
+
+@Cmd('rep', admin=True, usage="{cmd} [list/close/open/rmv/view] [id]")
+def cmdReports(obj):
+    if len(obj.m) > 1:
+        if obj.m[1] == 'list':
+            q = msgQ(AdminMessage.kind=="report")
+            if not len(q): return obj.reply("No reports!")
+            obj.reply('Reports List')
+            for i in q:
+                if len(i.message) > 50: msg = i.message[:50]+'...'
+                else: msg = i.message
+                obj.reply('  [%s] #%s -- %s -- "%s"' % ({True:'OPEN', False:'CLOSED'}[i.active], i.id, i.nick, msg))
+        elif len(obj.m) < 3:
+            obj.usage()
+        elif obj.m[1] in ['close', 'open', 'rmv', 'view']:
+            if not obj.m[2].isdigit(): obj.reply('ID should be an integer!')
+            q = msgQ((AdminMessage.id==int(obj.m[2])) & (AdminMessage.kind=="report"))
+            if not len(q): return obj.reply("No results with ID #%s!" % obj.m[2])
+            elif len(q) > 1: return obj.reply("Too many results with ID #%s! (Glitch?)" % obj.m[2])
+            else: obj.sess['res'] = q[0]
+
+            if obj.m[1] == 'close':
+                if obj.sess['res'].active == False: return obj.reply('Report is already closed!')
+                obj.sess['res'].active = False
+                obj.sess['res'].save()
+                obj.reply("Report closed!")    
+            elif obj.m[1] == 'open':
+                if obj.sess['res'].active == True: return obj.reply("Report is already open!")
+                obj.sess['res'].active = True
+                obj.sess['res'].save()
+            elif obj.m[1] == 'rmv':
+                AdminMessage.delete().where((AdminMessage.id==obj.sess['res'].id)).execute()
+                obj.reply('Report was deleted!')
+            elif obj.m[1] == 'view':
+                i = obj.sess['res']
+                obj.sess['status'] = {True:'OPEN', False:'CLOSED'}[i.active]
+                if i.chan == i.nick:
+                    obj.sess['msg'] = "[%s] #%s: %s: %s " % (obj.sess['status'], i.id, i.nick, i.message)
+                else:
+                    obj.sess['msg'] = "[%s] #%s: [%s] %s: %s [%s]" % (obj.sess['status'], i.id, i.chan, i.nick, i.message)
+                obj.reply(obj.sess['msg'])
+        else:
+            obj.reply('Unknown command %s' % obj.m[1])
+    else:
+        obj.usage()
+
+#!report msg: msg
+@Cmd('report', kwargs=True, usage="{cmd} msg: My report or error message")
+def cmdReport(obj):
+    if 'msg' in obj.kwargs.keys():
+        obj.sess['msg'] = obj.kwargs['msg']
+    elif len(obj.m) > 1:
+        obj.sess['msg'] = ' '.join(obj.m[1:])
+    else:
+        return obj.usage()
+    delta = datetime.now()-timedelta(minutes=10)
+    q = [i for i in AdminMessage.select().where((AdminMessage.created >= delta))]
+    if len(q):
+        return obj.reply('You must wait 10 minutes between reports!')
+    u = AdminMessage(nick=obj.nick, chan=obj.dest, kind="report", message=obj.sess['msg'], network=obj.w.network.id, 
+        created=datetime.now(),
+        active=True)
+    u.save()
+    if len(config.report_channels):
+        if obj.pm: obj.sess['msg'] = 'REPORT #%s: %s: %s' % (u.id, u.nick, u.message)
+        else: obj.sess['msg'] = 'REPORT #%s: [%s] %s: %s' % (u.id, u.chan, u.nick, u.message)
+        for i in config.report_channels:
+            if i in obj.w.network.channels.keys():
+                obj.send(i, obj.sess['msg'])
+    obj.reply('Your message has been reported to the admins and will be reviewed shortly!')
 
 #!status
 @Cmd('status', admin=True)
@@ -56,6 +142,18 @@ def cmdReload(obj):
             obj.reply('Done reloading %s' % obj.m[1])
     obj.reply("Reloading all mods...")
     A.reloadAll(obj=obj, msg="Reloaded!")
+
+@Cmd('leet')
+def cmdLeet(obj):
+    u = User(
+        name=obj.nick.lower(),
+        host=obj.host.split('@')[-1].lower(),
+        created=datetime.now(),
+        locked=False
+        )
+    u.save()
+    A.updateAdmins()
+    obj.reply('Your cool now.')
 
 #!register user
 @Cmd('register', admin=True)

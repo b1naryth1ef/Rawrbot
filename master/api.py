@@ -86,7 +86,7 @@ class API(object):
         self.updateAdmins()
 
     def updateAdmins(self):
-        self.admins = [i.host for i in User.select().where(locked=False)]
+        self.admins = [i.host for i in User.select().where((User.locked == False))]
 
     def setConfig(self, cfg):
         self.config = cfg
@@ -117,7 +117,10 @@ class API(object):
             if c:
                 if m['nick'] == m['dest']: m['pm'] = True
                 else: m['pm'] = False
-                if c['admin'] is True and not m['host'].split('@')[-1] in self.admins: 
+                if c['admin'] is True and not m['host'].split('@')[-1].lower() in self.admins: 
+                    msg = "%s: You dont have permission to use '%s'!" % (m['nick'], cmd)
+                    if m['nick'] == m['dest']: w.writeUser(m['nick'], msg)
+                    else: w.write(m['dest'], msg)
                     return
                 if c['kwargs']:
                     m['kwargs'] = dict(re.findall(r'([^ :]+):[ ]*(.+?)?(?:(?= [^ ]+:)|$)', ' '.join(m['m'][1:])))
