@@ -61,6 +61,27 @@ class Network(object):
         self.users = {}
         self.workers = {}
 
+    def addChannel(self, chan):
+        if chan.startswith('#'): chan = chan[1:].lower()
+        else: chan = chan.lower()
+        m = 100
+        for i in self.workers.values():
+            if len(i.channels) < m:
+                m = len(i.channels)
+        for i in self.workers.values():
+            if len(i.channels) == m:
+                self.channels[chan] = Channel(self, chan)
+                return i.joinChannel(chan)
+
+    def rmvChannel(self, chan, msg=""):
+        if chan.startswith('#'): chan = chan[1:].lower()
+        else: chan = chan.lower()
+        if chan in self.channels.keys():
+            del self.channels[chan]
+            for i in self.workers.values():
+                if chan in i.channels:
+                    i.partChannel(chan, msg)
+
     def writeGlobal(self, msg):
         for chan in self.channels.keys():
             self.write(chan, msg)

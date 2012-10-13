@@ -9,7 +9,8 @@ __VERSION__ = 0.5
 __AUTHOR__ = "B1naryTh1ef"
 
 default_config = {
-    'report_channels':['b0tt3st']
+    'report_channels':['b0tt3st'],
+    'ignore_channels':['b0tt3st']
 }
 config = ConfigFile(name="util", path=['mods', 'config'], default=default_config)
 
@@ -38,6 +39,19 @@ def loop():
 
 def addSpam(msg, duration, interval): pass
 def rmvSpam(id): pass
+
+@Cmd('join', admin=True, usage="{cmd} <channel>")
+def cmdJoin(obj):
+    if len(obj.m) > 1: 
+        obj.w.network.addChannel(obj.m[1])
+    else: obj.usage()
+
+@Cmd('part', admin=True, kwargs=True, usage="{cmd} <channel> <msg:Part Message>")
+def cmdPart(obj):
+    if len(obj.m) > 1:
+        obj.sess['msg'] = obj.kwargs.get('msg', ' '.join(obj.m[2:]))
+        obj.w.network.rmvChannel(obj.m[1], obj.sess['msg'])
+    else: obj.usage()
 
 @Cmd('rep', admin=True, usage="{cmd} [list/close/open/rmv/view] [id]")
 def cmdReports(obj):
@@ -87,16 +101,18 @@ def cmdReports(obj):
 #!report msg: msg
 @Cmd('report', kwargs=True, usage="{cmd} msg: My report or error message")
 def cmdReport(obj):
+    if not obj.dest in config.ignore_channels:
+        return obj.reply("Reports cannot be sent from this channel!")
     if 'msg' in obj.kwargs.keys():
         obj.sess['msg'] = obj.kwargs['msg']
     elif len(obj.m) > 1:
         obj.sess['msg'] = ' '.join(obj.m[1:])
     else:
         return obj.usage()
-    delta = datetime.now()-timedelta(minutes=10)
+    delta = datetime.now()-timedelta(minutes=5)
     q = [i for i in AdminMessage.select().where((AdminMessage.created >= delta))]
     if len(q):
-        return obj.reply('You must wait 10 minutes between reports!')
+        return obj.reply('You must wait 5 minutes between reports!')
     u = AdminMessage(nick=obj.nick, chan=obj.dest, kind="report", message=obj.sess['msg'], network=obj.w.network.id, 
         created=datetime.now(),
         active=True)
