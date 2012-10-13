@@ -1,11 +1,11 @@
 from api import Cmd, Hook, A
 from data import ConfigFile, User, DBModel
 from datetime import datetime, timedelta
-import time, thread, psutil, os
+import time, thread, psutil, os, json
 from peewee import CharField, IntegerField, DateTimeField, BooleanField
 
 __NAME__ = "Util"
-__VERSION__ = 0.5
+__VERSION__ = 0.6
 __AUTHOR__ = "B1naryTh1ef"
 
 default_config = {
@@ -15,30 +15,119 @@ default_config = {
 config = ConfigFile(name="util", path=['mods', 'config'], default=default_config)
 
 logged_in = [] #(host, time)
+threads = []
 LOOPING = False
 
-class AdminMessage(DBModel):
-    nick = CharField()
-    chan = CharField()
-    kind = CharField()
+class Message(DBModel):
+    nick = CharField(null=True)
+    chan = CharField(null=True)
+    kind = CharField(null=True)
     message = CharField()
     network = IntegerField()
-    created = DateTimeField()
-    active = BooleanField()
-AdminMessage.create_table(True)
+    chans = CharField(null=True)
+    interval = IntegerField(null=True)
+    next = DateTimeField(null=True)
+    created = DateTimeField(null=True)
+    active = BooleanField(null=True)
+Message.create_table(True)
 
 def userQ(*args, **kwargs):
     return [i for i in User.select().where(*args, **kwargs)]
 
 def msgQ(*args, **kwargs):
-    return [i for i in AdminMessage.select().where(*args, **kwargs)]
+    return [i for i in Message.select().where(*args, **kwargs)]
+
+def spam(i):
+    chans = json.loads(i.chans)
+    i.next = datetime.now()+timedelta(minutes=i.interval)
+    i.save()
+    w = A.master.getNetwork(i.network)
+    if chans == '*':
+        w.writeGlobal(i.message)
+    else:
+        for chan in chans:
+            w.write(chan, i.message, force=True)
 
 def loop():
     while LOOPING:
         time.sleep(60)
+        if thread.get_ident() not in threads: return
+        for i in msgQ((Message.kind=="spam")&(Message.active==True)&(Message.next<=datetime.now())):
+            spam(i)            
+            
 
-def addSpam(msg, duration, interval): pass
-def rmvSpam(id): pass
+@Cmd('spamadd', admin=True, kwargs=True, usage="{cmd} <msg:Spam Message> <chans:List,of,channels,or,*> <time:(in minutes, between spams)>")
+def cmdAddspam(obj):
+    if not 'msg' in obj.kwargs.keys(): return obj.usage()
+    obj.sess['msg'] = obj.kwargs['msg']
+    if 'chans' in obj.kwargs.keys():
+        if obj.kwargs['chans'] != '*':
+            obj.sess['chans'] = [i.strip() for i in obj.kwargs.get('chans').split(',')]
+        else:
+            obj.sess['chans'] = '*'
+    else: obj.sess['chans'] = '*'
+    if 'time' in obj.kwargs.keys():
+        if obj.kwargs['time'].isdigit():
+            obj.sess['time'] = int(obj.kwargs['time'])
+        else: return obj.reply("Time must be in digits!")
+    else: obj.sess['time'] = 15
+    obj.sess['time'] = obj.kwargs['time']
+    s = Message(message=obj.sess['msg'], interval=obj.sess['time'], next=datetime.now(), kind='spam', chans=json.dumps(obj.sess['chans']), network=obj.w.network.id, active=True)
+    s.save()
+    obj.reply("Added spam #%s" % s.id)
+
+@Cmd('spamrmv', admin=True, usage="{cmd} <id>")
+def cmdRmvspam(obj):
+    if len(obj.m) > 1:
+        if obj.m[1].isdigit():
+            q = msgQ((Message.id==int(obj.m[1])))
+            if len(q):
+                Message.delete().where((Message.id==int(obj.m[1]))).execute()
+                obj.reply("Deleted spam!")
+        else:
+            obj.reply("Thats an invalid ID!")
+    else: obj.usage()
+
+@Cmd('spamlist', admin=True, usage="{cmd}")
+def cmdListspam(obj):
+    q = msgQ((Message.active==True)&(Message.kind=="spam"))
+    if len(q):
+        obj.reply("Spams:")
+        for i in q:
+            obj.reply('  #%s: "%s" every %s minutes.' % (i.id, i.message, i.interval))
+    else:
+        obj.reply("No Spams!")
+
+@Cmd('spamedit', admin=True, kwargs=True, kwargsbool=['active', 'spam'], usage="{cmd} <id:id> [msg:msg] [chans:chans] [time:time] [active:{bool}] [spam:{bool}]")
+def cmdEditspam(obj):
+    if not 'id' in obj.kwargs.keys(): return obj.usage()
+    if not obj.kwargs['id'].isdigit(): return obj.reply("ID Must be an integer!")
+    i = msgQ((Message.id==int(obj.kwargs['id'])))
+    if len(i):
+        i = i[0]
+        if 'msg' in obj.kwargs.keys(): i.message = obj.kwargs['msg']
+        if 'chans' in obj.kwargs.keys(): 
+            if obj.kwargs['chans'] != '*':
+                i.data = json.dumps([i.strip() for i in obj.kwargs.get('chans').split(',')])
+            else:
+                i.data = json.dumps('*')
+        if 'time' in obj.kwargs.keys():
+            if obj.kwargs['time'].isdigit():
+                i.interval = int(obj.kwargs['time'])
+                i.next = datetime.now()+timedelta(minutes=i.interval)
+            else:
+                obj.reply('Time must be an integer!')
+        if obj.kwargs.get('spam', False):
+            spam(i)
+        if 'active' in obj.kwargs.keys():
+            i.active = obj.kwargs['active']
+        i.save()
+        obj.reply("Spam edited successfully!")
+    else:
+        obj.reply("Could not find spam with ID #%s" % obj.kwargs['id'])
+
+@Cmd('spam', admin=True)
+def cmdSpam(obj): pass
 
 @Cmd('join', admin=True, usage="{cmd} <channel>")
 def cmdJoin(obj):
@@ -57,7 +146,7 @@ def cmdPart(obj):
 def cmdReports(obj):
     if len(obj.m) > 1:
         if obj.m[1] == 'list':
-            q = msgQ(AdminMessage.kind=="report")
+            q = msgQ(Message.kind=="report")
             if not len(q): return obj.reply("No reports!")
             obj.reply('Reports List')
             for i in q:
@@ -68,7 +157,7 @@ def cmdReports(obj):
             obj.usage()
         elif obj.m[1] in ['close', 'open', 'rmv', 'view']:
             if not obj.m[2].isdigit(): obj.reply('ID should be an integer!')
-            q = msgQ((AdminMessage.id==int(obj.m[2])) & (AdminMessage.kind=="report"))
+            q = msgQ((Message.id==int(obj.m[2])) & (Message.kind=="report"))
             if not len(q): return obj.reply("No results with ID #%s!" % obj.m[2])
             elif len(q) > 1: return obj.reply("Too many results with ID #%s! (Glitch?)" % obj.m[2])
             else: obj.sess['res'] = q[0]
@@ -83,7 +172,7 @@ def cmdReports(obj):
                 obj.sess['res'].active = True
                 obj.sess['res'].save()
             elif obj.m[1] == 'rmv':
-                AdminMessage.delete().where((AdminMessage.id==obj.sess['res'].id)).execute()
+                Message.delete().where((Message.id==obj.sess['res'].id)).execute()
                 obj.reply('Report was deleted!')
             elif obj.m[1] == 'view':
                 i = obj.sess['res']
@@ -110,10 +199,10 @@ def cmdReport(obj):
     else:
         return obj.usage()
     delta = datetime.now()-timedelta(minutes=5)
-    q = [i for i in AdminMessage.select().where((AdminMessage.created >= delta))]
+    q = [i for i in Message.select().where((Message.created >= delta))]
     if len(q):
         return obj.reply('You must wait 5 minutes between reports!')
-    u = AdminMessage(nick=obj.nick, chan=obj.dest, kind="report", message=obj.sess['msg'], network=obj.w.network.id, 
+    u = Message(nick=obj.nick, chan=obj.dest, kind="report", message=obj.sess['msg'], network=obj.w.network.id, 
         created=datetime.now(),
         active=True)
     u.save()
@@ -210,11 +299,6 @@ def cmdUserlist(obj):
         time.sleep(.1) #So we dont spam
     obj.privmsg(obj.nick, "End user list")
 
-@Cmd('addspam', kwargs=True, admin=True)
-def cmdAddspam(obj): pass
-
-@Cmd('rmvspam', kwargs=True, admin=True)
-def cmdRmvspam(obj): pass
 
 @Cmd('msg', kwargs=True, kwargsbool=['nick'], admin=True, usage="{cmd} msg:Blah Blah nick:[{bool}] chan:[#achannel]", alias=['m'])
 def cmdMsg(obj):
@@ -230,8 +314,12 @@ def cmdMsg(obj):
     else: obj.send(obj.sess['chan'], obj.msg)
 
 def onLoad():
+    global LOOPING, threads
     LOOPING = True
-    thread.start_new_thread(loop, ())
+    threads = []
+    threads.append(thread.start_new_thread(loop, ()))
 
 def onUnload():
+    global threads
+    threads = []
     LOOPING = False

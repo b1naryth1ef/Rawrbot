@@ -123,7 +123,7 @@ class API(object):
                     else: w.write(m['dest'], msg)
                     return
                 if c['kwargs']:
-                    m['kwargs'] = dict(re.findall(r'([^ :]+):[ ]*(.+?)?(?:(?= [^ ]+:)|$)', ' '.join(m['m'][1:])))
+                    m['kwargs'] = dict(re.findall(r'([^ :]+):[ ]*(.+?)?(?:(?= [^ \\]+:)|$)', ' '.join(m['m'][1:])))
                     for i in m['kwargs']:
                         if i not in c['kbool']: continue
                         val = m['kwargs'][i]

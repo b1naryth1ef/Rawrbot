@@ -106,11 +106,16 @@ class Network(object):
         w = Worker(_getid(), self, auth=self.auth)
         return w
 
-    def write(self, chan, msg=""):
+    def write(self, chan, msg="", force=False):
         if chan.startswith('#'): chan = chan[1:]
         for w in self.workers.values():
+            if w == None: continue
             if chan.lower() in w.channels:
                 w.push("MSG", chan=chan.lower(), msg=msg)
+            elif force:
+                w.joinChannel(chan.lower())
+                w.push("MSG", chan=chan.lower(), msg=msg)
+                w.partChannel(chan.lower(), "Done")
         print '%s -> %s' % (msg, chan)
 
     def addWorker(self, worker):
@@ -282,6 +287,9 @@ class Master(object):
                 i.quit()
         finally:
             self.sub.unsubscribe('irc.master')
+
+    def getNetwork(self, netid):
+        return self.networks[netid]
 
     def addWorker(self, chan):
         #@DEV Find the network with the least workers
