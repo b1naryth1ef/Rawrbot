@@ -271,7 +271,7 @@ def cmdRegister(obj):
     obj.sess['info'] = obj.w.getUserInfo(obj.sess['nick'])
     if obj.sess['info']:
         if 'auth' in obj.sess['info'].keys():
-            if len(userQ(name=obj.sess['nick'].lower())+userQ(host=obj.sess['info']['host'].lower())):
+            if len(userQ((User.name==obj.sess['nick'].lower()))+userQ((User.host==obj.sess['info']['host'].lower()))):
                 return obj.reply('This user is already registered!')
             else:
                 u = User(
