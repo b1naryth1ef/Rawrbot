@@ -21,13 +21,13 @@ class Worker(object):
 
         self.nickq = {}
 
-        try:
+        if 1==1: #try:
             self.boot()
             self.active = True
             thread.start_new_thread(self.ircloop, ())
             self.redloop()
-        except:
-           self.quit()
+        #except:
+        #   self.quit()
 
     def parse(self, msg):
         m = msg.split(' ', 2)
@@ -100,7 +100,7 @@ class Worker(object):
     def redloop(self):
         print 'Looping redis'
         self.rsub = self.red.pubsub()
-        self.rsub.subscribe("irc.worker.%s" % self.id)
+        self.rsub.subscribe("irc.%s.w.%s" % (self.nid, self.id))
         while self.active:
             for msg in self.rsub.listen():
                 try: m = json.loads(msg['data'])
