@@ -7,6 +7,7 @@ import sys, os, time
 class Worker(object):
     def __init__(self):
         self.id = -1
+        self.nid = -1
         self.nick = ""
         self.channels = []
         self.whois = {}
@@ -15,6 +16,7 @@ class Worker(object):
         self.ready = False
         self.readyq = deque()
         self.lastwrite = 0
+        self.pinged = False
 
         self.red = redis.Redis(host="hydr0.com", password="")
         self.sub = self.red.pubsub()
@@ -24,10 +26,16 @@ class Worker(object):
         if 1==1: #try:
             self.boot()
             self.active = True
+            
+            self.connect()
             thread.start_new_thread(self.ircloop, ())
+            #thread.start_new_thread(self.writeloop, ())
             self.redloop()
         #except:
         #   self.quit()
+
+    def getChanReads(self, *args):
+        return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
 
     def parse(self, msg):
         m = msg.split(' ', 2)
@@ -42,10 +50,10 @@ class Worker(object):
                 else: self.nickq[chan] += nicks
             elif m[1] == "366": #END OF NAMES
                 m = m[2].split(' ', 2)
-                self.push('NAMES', chan=m[1], nicks=self.nickq[m[1]])
+                self.p('NAMES', chan=m[1], nicks=self.nickq[m[1]])
             elif m[1] == "332": #TOPIC
                 m = msg.split(' ')
-                self.push('TOPIC', chan=m[3], topic=m[-1][1:])
+                self.p('TOPIC', chan=m[3], topic=m[-1][1:])
             elif m[1] == '311': #WHOIS user info
                 m = msg.split(' ')
                 nick = m[3]
@@ -70,90 +78,100 @@ class Worker(object):
             nick = nick[1:]
             if m[1] == "JOIN":
                 if nick.lower() == self.nick.lower(): pass
-                else: self.push('JOIN', nick=nick, chan=m[2])
+                else:
+                    self.p('JOIN', nick=nick, chan=m[2])
             elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
                 else: 
                     chan = m[2].split(':')[0]
-                    self.push('PART', nick=nick, chan=chan, msg="")
+                    self.p('PART', nick=nick, chan=chan, msg="")
             elif m[1] == "PRIVMSG":
                 m = msg.split(' ', 3)
                 dest = m[2]
                 msg = m[3][1:]
-                self.push("MSG", dest=dest, msg=msg, nick=nick, host=host)
-        
+                self.p("MSG", dest=dest, msg=msg, nick=nick, host=host)
+
+    def p(self, tag, **kwargs): #Any master can parse a message pushed here
+        kwargs['tag'] = tag
+        kwargs['id'] = self.id
+        kwargs['nid'] = self.nid
+        self.red.rpush('i.parseq', json.dumps(kwargs))
+
     def write(self, *args, **kwargs):
-        if not self.ready: self.readyq.append((args, kwargs))
-        if time.time()-self.lastwrite < .05: 
-            print 'BUFFERING MSGS'
-            time.sleep(.05) # nice buffering
         self.c.write(*args, **kwargs)
 
     def join(self, chan):
+        if not chan.startswith('#'): chan = "#"+chan
         self.channels.append(chan)
         self.write('JOIN %s' % chan)
 
     def part(self, chan, msg="Leaving"):
-        self.channels.pop(self.channels.index(chan))
+        if not chan.startswith('#'): chan = "#"+chan
+        self.channels.remove(chan)
         self.write('PART %s :%s' % (chan, msg))  
 
     def redloop(self):
         print 'Looping redis'
-        self.rsub = self.red.pubsub()
-        self.rsub.subscribe("irc.%s.w.%s" % (self.nid, self.id))
         while self.active:
-            for msg in self.rsub.listen():
-                try: m = json.loads(msg['data'])
-                except: 
-                    print msg
-                    continue
-                if m['tag'] == "PART": self.part(m['chan'], m['msg'])
-                elif m['tag'] == "JOIN": self.join(m['chan'])
-                elif m['tag'] == "SHUTDOWN": self.quit("Bot is shutting down...")
-                elif m['tag'] == "PING": self.push('PONG')
-                elif m['tag'] == "MSG":
-                    if not m['chan'].startswith('#'): m['chan'] = '#'+m['chan']
-                    print 'PRIVMSG [%s]: %s' % (m['chan'], m['msg'])
-                    self.write('PRIVMSG %s :%s' % (m['chan'], m['msg']))
-                elif m['tag'] == 'UMSG':
-                    print "USERMSG [%s]: %s" % (m['user'], m['msg'])
-                    self.write('PRIVMSG %s :%s' % (m['user'], m['msg']))
-                elif m['tag'] == 'UINFO':
-                    if m['user'] not in self.whois.keys():
-                        self.whois[m['user'].lower()] = {'chank':m['chan']}
-                        self.write('WHOIS %s' % (m['user']))
-        self.rsub.unsubscribe("irc.worker.%s" % self.id)
+            c, q = self.red.blpop(self.getChanReads('i.%s.worker.%s' % (self.nid, self.id)))
+            try: q = json.loads(q)
+            except:
+                print "Bad message: %s" % msg
+                continue
+            if q['tag'] == 'PART': self.part(m['chan'], m['msg'])
+            elif q['tag'] == 'JOIN': self.join(q['chan'])
+            elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
+            elif q['tag'] == "PING": 
+                self.pinged = True
+                self.push('PONG')
+            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (c, q['msg']))
+            elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
+            elif q['tag'] == 'WHOIS':
+                if q['nick'] not in self.whois.keys():
+                    self.whois[q['nick'].lower()] = {'chank':q['chan']}
+                    self.write('WHOIS %s' % (q['nick']))
+            elif q['tag'] == 'ID':
+                print 'Recovering from master failure!'
+                for i in self.channels:
+                    self.write('PRIVMSG %s :%s' % (i, 'Master has gone down! Bot is recovering...'))
+                self.push('ID', id=self.id, nid=self.nid, chans=self.channels)
+            else:
+                print 'WAT? %s: %s' % (c, q)
+            #@TODO Add a delay here depending on the server
 
-    def ircloop(self):
-        print 'Connecting...'
-        self.c = Connection()
-        self.c.host = self.server
-        self.c.nick = self.nick
+    def connect(self):
+        print 'Connecting to %s as %s' % (self.server, self.nick)
+        self.c = Connection(host=self.server, nick=self.nick)
         if self.auth:
             self.c.joins.append(self.auth)
             self.c.joins.append('MODE %s +x' % self.nick)
-        self.c.connect(self.channels)
+        if not self.c.connect(self.channels):
+            print 'Failed to connect!'
+            sys.exit()
         self.push('READY')
         self.ready = True
-        while len(self.readyq):
+        for i in self.readyq:
             i = self.readyq.popleft()
             self.c.write(*i[0], **i[1])
 
-        while self.active:
+    def ircloop(self):
+        while self.active and self.c.alive:
             l = self.c.read()
             for i in l.split('\r\n'):
-                if i:
-                    self.parse(i)
+                if i: self.parse(i)
+                #else: print "Did we get disconnected from irc?"
 
     def quit(self, reason="Bot is leaving..."):
-        self.write('QUIT :%s' % reason)
+        print 'Bot is quitting!'
+        if self.c.alive: 
+            self.write('QUIT :%s' % reason)
+            self.c.disconnect()
         self.push('BYE')
         self.active = False
         sys.exit()
-        #self.red.disconnect()
 
     def boot(self):
-        print 'Attempting to boot worker...'
+        print 'Attempting to boot worker!'
         resp = "irc.%s" % random.randint(1111, 9999) #Get a random channel int
         self.sub.subscribe(resp)
         self.push("HI", resp=resp)
@@ -163,7 +181,7 @@ class Worker(object):
                 except:
                     print msg
                     continue
-                self.__dict__.update(obj)
+                self.__dict__.update(obj) #@TODO Fix this
                 print 'Got worker info:', obj
                 break
             break
