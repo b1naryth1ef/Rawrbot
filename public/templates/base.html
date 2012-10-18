@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--[if IE 7]>    <html class="no-js ie7 ie" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 ie" lang="en"> <![endif]-->
+<!--[if IE 9]>    <html class="no-js ie9 ie" lang="en"> <![endif]-->
+<!--[if gt IE 9]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <title>RawrBot</title>
+        <meta name="description" content="">
+        <meta name="author" content="Walking Pixels | www.walkingpixels.com">
+        <meta name="robots" content="index, follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- CSS styles -->
+        <link rel='stylesheet' type='text/css' href='/static/css/wuxia-red.css'>
+        
+        <!-- Fav and touch icons -->
+        <link rel="shortcut icon" href="/static/img/icons/favicon.ico">
+        <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/static/img/icons/apple-touch-icon-114-precomposed.png">
+        <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/static/img/icons/apple-touch-icon-72-precomposed.png">
+        <link rel="apple-touch-icon-precomposed" href="/static/img/icons/apple-touch-icon-57-precomposed.png">
+        
+        <!-- JS Libs -->
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="/static/js/libs/jquery.js"><\/script>')</script>
+        <script src="/static/js/libs/modernizr.js"></script>
+        <script src="/static/js/libs/selectivizr.js"></script>
+        
+        <script>
+            $(document).ready(function(){
+                $('.navbar [title]').tooltip({
+                    placement: 'bottom'
+                });
+                $('[role=main] [title]').tooltip({
+                    placement: 'top'
+                });
+                $('.dropdown-toggle').dropdown();
+                
+            });
+        </script>
+    </head>
+    <body>
+        <header class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".user">
+                        <span class="icon-user"></span>
+                    </button>
+                    <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".navigation">
+                        <span class="icon-chevron-down"></span>
+                    </button>
+                    
+                    <nav class="nav-collapse navigation">
+                        <ul class="nav" role="navigation">
+                            <li class="active"><a href="/" title="Homepage dashboard"><span class="icon-home"></span> Home</a></li>
+                            <li><a href="/info" title="Info"><span class="icon-table"></span> Info</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </header>
+        <!-- /Main navigation bar -->
+        
+        <!-- Main content -->
+        <div class="container" role="main">
+        
+            <!-- Secondary navigation in hero unit -->
+            <div class="hero-unit blow">
+                <h1>Rawrbot</h1>
+                <p>The Rawrbot network is a secure, redundent set of IRC bots that gives the Urban Terror community a kickass set of tools and commands, from spamming clanwars to tracking the latest GTV/Streamed matches, the bot gives users direct access to awesome content and functionality. </p>
+            </div>
+            <!-- /Secondary navigation in hero unit -->
+            
+            <!-- Main data container -->
+            <div class="content">
+                <div class="page-container tab-content">
+                    <div class="tab-pane active" id="ui">
+                        <div class="row">
+                            <article class="span3 center">
+                                <h2>Built for Dependability</h2>
+                                <p>Every step of the way, Rawrbot has fail-safes and redundencies to prevent any downtime or problems.</p>
+                            </article>
+                            <article class="span3 center">
+                                <h2>Built for Speed</h2>
+                                <p>Using the widely used and extremly efficent Redis NoSQL database, Rawrbot has fast response times.</p>
+                            </article>
+                            <article class="span3 center">
+                                <h2>Built for Usability</h2>
+                                <p>Built from the ground up with users in mind.</p>
+                            </article>
+                            <article class="span3 center">
+                                <h2>Built for Awesome</h2>
+                                <p>Its just kinda awesome :D</p>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="container">
+            <nav>
+                <ul>
+                    <li>&copy; Copyright 2012. All rights reserved.</li>
+                </ul>
+            </nav>
+            <p>Built for awesome by <a href="http://twitter.com/b1naryth1ef">B1naryTh1ef</a></p>
+        </footer>
+        <!-- /Main footer -->
+        
+        <!-- Scripts -->
+        <script src="/static/js/navbar.js"></script>
+        <script src="/static/js/plugins/waypoints.min.js"></script>
+        <script src="/static/js/bootstrap/bootstrap-tooltip.js"></script>
+        <script src="/static/js/bootstrap/bootstrap-dropdown.js"></script>
+        <script src="/static/js/bootstrap/bootstrap-collapse.js"></script>
+        
+        <!-- jQuery Flot Charts -->
+        <!--[if lte IE 8]>
+            <script language="javascript" type="text/javascript" src="/static/js/plugins/flot/excanvas.min.js"></script>
+        <![endif]-->
+        <script src="/static/js/plugins/flot/jquery.flot.js"></script>
+        <script src="/static/js/plugins/flot/jquery.flot.pie.js"></script>
+        
+        
+        <!-- jQuery DataTable -->
+        <script src="/static/js/plugins/dataTables/jquery.datatables.min.js"></script>
+        
+        
+    </body>
+</html>
