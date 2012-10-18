@@ -23,16 +23,15 @@ class Worker(object):
 
         self.nickq = {}
 
-        if 1==1: #try:
+        try:
             self.boot()
             self.active = True
             
             self.connect()
             thread.start_new_thread(self.ircloop, ())
-            #thread.start_new_thread(self.writeloop, ())
             self.redloop()
-        #except:
-        #   self.quit()
+        except:
+           self.quit()
 
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
@@ -107,6 +106,7 @@ class Worker(object):
 
     def part(self, chan, msg="Leaving"):
         if not chan.startswith('#'): chan = "#"+chan
+        if chan not in self.channels: return
         self.channels.remove(chan)
         self.write('PART %s :%s' % (chan, msg))  
 
@@ -118,13 +118,13 @@ class Worker(object):
             except:
                 print "Bad message: %s" % msg
                 continue
-            if q['tag'] == 'PART': self.part(m['chan'], m['msg'])
+            if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
             elif q['tag'] == 'JOIN': self.join(q['chan'])
             elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
             elif q['tag'] == "PING": 
                 self.pinged = True
                 self.push('PONG')
-            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (c, q['msg']))
+            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
                 if q['nick'] not in self.whois.keys():

@@ -1,207 +1,203 @@
-import os, sys, time, thread, re
-from data import User
+import re, thread, json
+import sys, os, time
+import random, __builtin__
 
-def Hook(name, chan=None, user=None):
-    def deco(func):
-        global A
-        A.addHook(name, func, chan, user)
-        return func
-    return deco
-
-def Cmd(name, **kwargs):
-    def deco(func):
-        global A
-        A.addCmd(name, func, **kwargs)
-        return func
-    return deco
-
-class FiredCommand(object):
-    def __init__(self, _name=None, _c=None, _prefix=None, **data):
-        self._name = _name
-        self._c = _c
-        self._cmd = self._c['f']
-        self._prefix = _prefix
-        if 'data' in data.keys():
-            data = data['data']
-        self.__dict__.update(data)
+class FiredEvent():
+    def __init__(self, api, name, data={}):
+        self._name = name
+        self._data = data
+        self._api = api
         self.sess = {}
+        self.__dict__.update(data)
+
+class FiredCommand(FiredEvent):
+    def reply(self, msg):
+        if self.pm: self.privmsg(self.nick, msg)
+        else: self.send(self.dest, '%s: %s' % (self.nick, msg))
 
     def usage(self):
-        f = self._c['usage'].format(**{'cmd':self._name, 'bool':'true/false/0/1'})
-        self.reply(self._prefix+f)
-
-    def fire(self):
-        thread.start_new_thread(self._cmd, (self,))
-        return self
-
-    def reply(self, msg):
-        if self.pm:
-            return self.w.writeUser(self.dest, msg)
-        self.w.write(self.dest, '%s: %s' % (self.nick, msg))
+        i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
+        self.reply(self._prefix+i)
 
     def privmsg(self, user, msg):
-        self.w.writeUser(user, msg)
+        k = {'tag':'PM', 'msg':msg, 'nick':user}
+        self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
-    def send(self, dest, msg):
-        if self.pm: return self.privmsg(dest, msg)
-        self.w.write(dest, msg)
+    def send(self, chan, msg): #@TODO Check if valid channel?
+        k = {'tag':'MSG', 'chan':chan.replace('#', ''), 'msg':msg}
+        self._api.red.rpush('i.%s.chan.%s' % (self.nid, k['chan']), json.dumps(k))
 
-class FiredEvent(object):
-    def __init__(self, api, **data):
+class Plugin():
+    def __init__(self, api, name="NullPlugin", version=0.1, author="Null"):
         self.api = api
-        if 'data' in data.keys():
-            data = data['data']
-        self.__dict__.update(data)
-        self.data = data
-        self.sess = {}
+        self.realname = name.lower().replace(' ', '')
+        self.mod = None
+        self.name = name
+        self.version = version
+        self.author = author
 
-    def fire(self):
-        for i in self.api.hooks[self._name]:
-            if 'chan' in self.data and i['c'] != None: 
-                if self.data['chan'] != i['c']: continue
-            if 'nick' in self.data and i['u'] != None: 
-                if self.data['nick'] != i['u']: continue
-            thread.start_new_thread(i['f'], (self,))
-        return self
+        self.cmds = []
+        self.hooks = []
 
-    def getDict(self):
-        return self.__dict__
+        self.api.plugins[self.realname] = self
 
-# USE CASES:
-# !gtv add Blah >Zoo< 04.08.2012 22:00 CB/NC CTF
-# !gtv add Blah >Zoo<
-# !gtv set match:1337 a:Blahzy
+    def loaded(self):
+        self.mod = self.api.mods[self.realname]
+
+    def cmd(self, name, **kwargs): #@TYPE Decorator
+        def deco(func):
+            self.api.addCommand(self, name, func, **kwargs)
+            self.cmds.append(name)
+            return func
+        return deco
+
+    def hook(self, name): #@TYPE Decorator
+        def hook(func):
+            func.id = self.api.addHook(self, name, func)
+            self.hooks.append(func.id)
+            return func
+        return deco
+
+    def reload(self):
+        self.unload()
+        self.mod = reload(self.mod)
+        self.mod.plugin = self
+        if hasattr(self.mod, 'onLoad'): self.onLoad()
+
+    def unload(self):
+        if hasattr(self.mod, 'onUnload'): self.onUnload()
+        for i in cmds:
+            self.api.rmvCommand(i)
+        for i in hooks:
+            self.api.rmvHook(i)
 
 class API(object):
-    def __init__(self):
-        self.admins = []
-        self.master = None
-        self.red = None
+    def __init__(self, red):
+        self.red = red
         self.prefix = "!"
+
         self.mods = {}
-        self.hooks = {}
+        self.plugins = {}
         self.commands = {}
-        self.alias = {}
+        self.hook_key = {}
+        self.hooks = {}
 
-        self.updateAdmins()
+    def validChan(self, net, chan):
+        return self.red.sismember('i.%s.chans' % net, chan)
 
-    def updateAdmins(self):
-        self.admins = [i.host for i in User.select().where((User.locked == False))]
+    def write(self, net, chan, msg):
+        msg = {
+            'tag':'MSG',
+            'chan':chan.replace('#', ''),
+            'msg':msg}
+        self.red.rpush('i.%s.chan.%s' % (net, msg['chan']), json.dumps(msg))
 
-    def setConfig(self, cfg):
-        self.config = cfg
+    def writeUser(self, m, user, msg):
+        msg = {
+            'tag':'PM',
+            'nick':user,
+            'msg':msg}
+        self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
-    def addCmd(self, name, func, admin=False, kwargs=False, kwargsbool=[], usage="", alias=[]):
+    def isAdmin(self, net, host): 
+        host = host.split('@')[-1].strip()
+        return self.red.sismember('i.%s.admins' % (net), host)
+
+    def parseCommand(self, data):
+        m = data['msg'].split(' ')
+        obj = FiredCommand(self, m[0][len(self.prefix):], data)
+        obj.m = m
+        obj._prefix = self.prefix
+        obj._cmd = self.getCommand(obj._name)
+        if data['nick'] == data['dest']: obj.pm = True
+        else: obj.pm = False
+        if obj._cmd:
+            if obj._cmd['admin'] is True and not self.isAdmin(data['nid'], data['host']):
+                msg = "You must be an admin to use that command!"
+                if obj.pm: self.writeUser(data, data['nick'], msg)
+                else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+                return
+            if obj._cmd['kwargs']:
+                obj.kwargs = dict(re.findall(r'([^ \=]+)\=[ ]*(.+?)?(?:(?= [^ \\]+\=)|$)', ' '.join(m[1:])))
+                for i in obj._cmd['kbool']:
+                    if i in obj.kwargs:
+                        kb = obj.kwargs[i]
+                        if kb.isdigit() and int(kb) in [0, 1]: 
+                            obj.kwargs[i] = bool(int(kb))
+                        elif kb.lower() in ['y', 'n', 'true', 'false', 'on', 'off']:
+                            obj.kwargs[i] = {'y':True, 'n':False, 'true':True, 'false':False, 'on':True, 'off':False}[kb.lower()]
+                        else:
+                            msg = 'Kwarg %s must be y/n, true/false, on/off 1/0!' % i
+                            if obj.pm: self.writeUser(data, data['nick'], msg)
+                            else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+                            return
+            thread.start_new_thread(obj._cmd['f'], (obj,))
+            return True
+        else:
+            msg = 'No such command "%s"!' % obj._name
+            if obj.pm: self.writeUser(data, data['nick'], msg)
+            else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[]):
+        if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
-            'admin':admin, 
-            'f':func, 
-            'kwargs':kwargs, 
-            'kbool':kwargsbool, 
-            'usage':usage, 
-            'alias':alias}
-        for i in alias:
-            self.alias[i] = name
+            'plug':plugin,
+            'f':func,
+            'admin':admin,
+            'kwargs':kwargs,
+            'kbool':kbool,
+            'usage':usage,
+            'alias':alias
+        }
 
-    def getCmd(self, cmd):
-        if cmd in self.commands.keys():
-            return self.commands[cmd]
-        elif cmd in self.alias.keys():
-            return self.commands[self.alias[cmd]]
+    def rmvCommand(self, name):
+        if name in self.commands.keys():
+            del self.commands[name]
 
-    def parse(self, w, m):
-        if m['msg'].startswith(self.prefix):
-            m['m'] = m['msg'].split(' ')
-            m['kwargs'] = {}
-            cmd = m['m'][0][len(self.prefix):]
-            c = self.getCmd(cmd)
-            if c:
-                if m['nick'] == m['dest']: m['pm'] = True
-                else: m['pm'] = False
-                if c['admin'] is True and not m['host'].split('@')[-1].lower() in self.admins: 
-                    msg = "%s: You dont have permission to use '%s'!" % (m['nick'], cmd)
-                    if m['nick'] == m['dest']: w.writeUser(m['nick'], msg)
-                    else: w.write(m['dest'], msg)
-                    return
-                if c['kwargs']:
-                    m['kwargs'] = dict(re.findall(r'([^ :]+):[ ]*(.+?)?(?:(?= [^ \\]+:)|$)', ' '.join(m['m'][1:])))
-                    for i in m['kwargs']:
-                        if i not in c['kbool']: continue
-                        val = m['kwargs'][i]
-                        if val.isdigit() and int(val) in [0, 1]:
-                            m['kwargs'][i] = bool(int(val))
-                        elif val.lower() in ['y', 'n', 'true', 'false']:
-                            m['kwargs'][i] = {'y':True, 'n':False, 'true':True, 'false':False}[val.lower()]
-                        else: 
-                            if m['pm']: return w.writeUser(m['nick'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!' % (m['nick'], i))
-                            else: return w.write(m['dest'], '%s: The kwarg "%s" must be 1/0, Y/N or True/False!'  % (m['nick'], i))
-                m['_name'] = cmd
-                m['_c'] = c 
-                m['_prefix'] = self.prefix
-                m['w'] = w
-                FiredCommand(**m).fire()
-                return True
-            else:
-                msg = "%s: Unknown command '%s'!" % (m['nick'], cmd)
-                if m['nick'] == m['dest']:
-                    w.writeUser(m['nick'], msg)
-                else:
-                    w.write(m['dest'], msg)
-                return False
+    def getCommand(self, name):
+        if name in self.commands.keys():
+            return self.commands[name]
 
-    def fireHook(self, name, **data):
-        if name in self.hooks.keys():
-            data['_name'] = name
-            FiredEvent(self, **data).fire()
-            
-    def addHook(self, name, func, chan=None, user=None):
-        obj = {'f':func, 'c':chan, 'u':user}
-        if name in self.hooks.keys(): self.hooks[name].append(obj)
-        else: self.hooks[name] = [obj]
+    def fireEvent(self, name, data):
+        if name.upper() in self.hooks:
+            obj = FiredEvent(self, name.upper(), data)
+            for i in self.hooks[name]:
+                thread.start_new_thread(self.hook_key[i], obj)
 
-    def rmvHook(self, func):
-        for a in self.hooks:
-            for b in self.hooks[a]:
-                if b['f'] == func:
-                    self.hooks[a].pop(self.hooks[a].index(b))
+    def addHook(self, plugin, hook, func):
+        id = random.randint(1111111, 9999999)
+        if id in self.hook_key.keys(): return addHook(plugin, hook, func) #Recursion fix for edgecase
+        self.hook_key[id] = (plugin, hook, func)
+        if hook in self.hooks.keys(): self.hooks[hook].append(id)
+        else: self.hooks[hook] = [id]
+        return id
 
-    def hasMod(self, mod):
-        if mod in self.mods.keys():
+    def rmvHook(self, hid):
+        i = self.hook_key[hid]
+        self.hooks[i[1]].remove(hid)
+        del self.hook_key[hid]
+
+    def loadPlugins(self):
+        for i in os.listdir('plugins'):
+            if not i[0] in ['.', '_'] and i.endswith('.py'):
+                i = i.split('.py')[0]
+                if self.hasPlugin(i): continue
+                __import__('plugins.%s' % i, globals(), locals(), [], -1)
+                self.loadPlugin(i)
+
+    def hasPlugin(self, name):
+        if name in self.plugins.keys():
             return True
         return False
 
-    def loadMods(self, plugins=[]):
-        print "--Loading mods--"
-        for i in os.listdir('mods'):
-            if not i.startswith('_') and i.endswith('.py'):
-                i = i.split('.py')[0]
-                if plugins and i not in plugins: continue
-                __import__('mods.%s' % i)
-                self.load(i)
-        print "--DONE--"      
+    def loadPlugin(self, f):
+        self.mods[f] = sys.modules['plugins.%s' % f]
+        if hasattr(f, 'onBoot'): mod.onBoot()
+        if 'f' in self.plugins:
+            self.plugins[f].loaded()
 
-    def load(self, i):
-        mod = sys.modules['mods.%s' % i]
-        self.mods[i] = mod
-        if hasattr(mod, "onLoad"): mod.onLoad()
-        print "Loaded %s v%s by %s" % (mod.__NAME__, mod.__VERSION__, mod.__AUTHOR__ )
+    def reloadPlugins(self):
+        for plugin in self.plugins.values():
+            plugin.reload()
 
-    def reloadAll(self, obj=None, msg=None):
-        self.hooks = {}
-        self.commands = {}
-        self.alias = {}
-        for i in self.mods.keys():
-            self.reload(i)
-        if obj and msg:
-            obj.reply(msg)
-            
-    def reload(self, i):
-        print 'Reloading %s' % i
-        if hasattr(self.mods[i], "onUnload"): self.mods[i].onUnload()
-        self.mods[i] = reload(self.mods[i])
-        if hasattr(self.mods[i], "onLoad"): self.mods[i].onLoad()
-
-    def unload(self, i):
-        if hasattr(self.mods[i], "onUnload"): self.mods[i].onUnload()
-        del sys.modules['mods.%s' % i]
-
-A = API()
+A = None

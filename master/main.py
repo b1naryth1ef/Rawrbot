@@ -1,323 +1,314 @@
-import redis, json, thread
-from collections import OrderedDict, deque
-from api import A
+import redis, json, thread, random
+import sys, os, time
+from collections import deque
+from parser import Parser
 from data import ConfigFile
-import sys, os, time, random
+import api
 
 default_cfg = {
-  'servers':
-    [
-      {
-        'host':'irc.quakenet.org',
-        'chans':['b0tt3st', 'Testy1', 'B1naryTh1ef'],
-        'auth':'',
-      }
+    'networks':[
+        {
+            'host':'irc.esper.net',
+            'chans':['b0tt3st', 'testy1', 'testy2', 'testy3', 'b1naryth1ef'],
+            'auth':'',
+        }
     ],
-  'admins':['b1naryth1ef']
+    'plugins':['util']
 }
 
+rand = lambda: random.randint(11111, 99999)
+chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
+
 red = redis.Redis(host="hydr0.com", password="")
-cfg = ConfigFile(name="main", default=default_cfg)
-plugins = ['web', 'util']
+cfg = ConfigFile(name="config", default=default_cfg)
+api.A = api.API(red)
 
-class Channel(object): #ASSUME WE HAVE #
-    def __init__(self, network, name, topic=""):
-        self.network = network
-        self.name = name.replace('#', '')
-        self.topic = topic
-        self.users = {}
+class Worker(object):
+    def __init__(self, id, net):
+        self.id = id
+        self.nick = net.nickkey+'-%s' % self.id
+        self.nid = net.id
+        self.net = net
+        self.chans = []
+        self.ready = False
+        self.waitPing = False
 
-    def setTopic(self, topic): #@TODO Fire event
-        self.topic = topic
+    def push(self, tag, **k):
+        k['tag'] = tag
+        red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
-    def addByNames(self, names):
-        for i in names:
-            if i in self.users: return
-            op, voice = False, False
-            if i.startswith('@'): op = True
-            if i.startswith('+'): voice = True
-            self.users[i] = {'op':op, 'voice':voice}
+    def setup(self, reply):
+        red.publish(reply, json.dumps({
+                'id':self.id,
+                'nid':self.nid,
+                'server':self.net.name,
+                'auth':self.net.auth,
+                'nick':self.nick
+            }))
+        thread.start_new_thread(self.getReady, ())
 
-    def addByNick(self, nick):
-        if nick in self.users: return #@TODO Eventually throw an error or warning here
-        self.users[nick] = {'op':False, 'voice':False}
+    def join(self, chan, send=True):
+        self.chans.append(chan)
+        self.net.channels[chan] = self
+        if send: self.push('JOIN', chan=chan)
 
-    def rmvByNick(self, nick):
-        if nick in self.users:
-            del self.users[nick]
+    def part(self, chan, msg, send=True):
+        self.chans.remove(chan)
+        self.net.channels[chan] = None
+        if send: self.push('PART', chan=chan, msg=msg)
 
-    def write(self, chan, msg=""):
-        self.network.write(self.name, msg)
+    def ping(self):
+        if not self.ready: return
+        self.waitPing = True
+        self.push('PING')
+        time.sleep(15)
+        if self.waitPing:
+            self.quit('Timed out!')
+
+    def quit(self, msg="!!"):
+        print 'Worker #%s is quitting... %s' % (self.id, msg)
+        for i in self.chans:
+            self.net.channels[i] = None
+        self.push('SHUTDOWN', msg=msg)
+        self.net.rmvWorker(self.id)
+
+    def getReady(self):
+        time.sleep(20)
+        if not self.ready:
+            print 'Worker going down for not getting ready in time!'
+            self.quit()
+
+    def parse(self, msg):
+        if msg['tag'] == 'READY': 
+            self.ready = True
+            self.net.setupWorker(self.id)
+        elif msg['tag'] == 'PONG': 
+            self.waitPing = False
+        elif msg['tag'] == 'BYE':
+            self.quit("Shutdown on worker side")
+        else:
+            print msg
 
 class Network(object):
     def __init__(self, id, name, master, channels=[], auth=""):
         self.id = id
         self.name = name
         self.master = master
-        self.nickbase = "RawrBot-"
+        self.channels = dict([(i.replace('#', ''), None) for i in channels])
         self.auth = auth
-
-        self.channels = OrderedDict([(i.lower(), Channel(self, i.lower())) for i in channels]) #NAME :> CHANNEL
-        self.users = {}
+        self.nickkey = "RawrBot"
         self.workers = {}
 
-    def addChannel(self, chan):
-        if chan.startswith('#'): chan = chan[1:].lower()
-        else: chan = chan.lower()
-        m = 100
-        for i in self.workers.values():
-            if len(i.channels) < m:
-                m = len(i.channels)
-        for i in self.workers.values():
-            if len(i.channels) == m:
-                self.channels[chan] = Channel(self, chan)
-                return i.joinChannel(chan)
-
-    def rmvChannel(self, chan, msg=""):
-        if chan.startswith('#'): chan = chan[1:].lower()
-        else: chan = chan.lower()
-        if chan in self.channels.keys():
-            del self.channels[chan]
-            for i in self.workers.values():
-                if chan in i.channels:
-                    i.partChannel(chan, msg)
-
-    def writeGlobal(self, msg):
+    def boot(self):
+        red.delete('i.%s.chans' % self.id)
+        red.delete('i.%s.workers' % self.id)
         for chan in self.channels.keys():
-            self.write(chan, msg)
+            red.delete('i.%s.chan.%s.users' % (self.id, chan))
+        red.set('i.%s.nickkey' % self.id, self.nickkey)
+        red.sadd('i.%s.chans' % self.id, *self.channels)
 
-    def hasChan(self, chan):
-        if chan.startswith('#'): chan = chan[1:]
-        if chan in self.channels.keys():
-            return True
-        return False
-
-    def getWorker(self):
-        #@DEV What ID are we?
-        def _getid():
-            if len(self.workers):
-                if None in self.workers.values():
-                    for i in self.workers:
-                        if self.workers[i] == None:
-                            return i
-                else: return max(self.workers.keys())+1
-            else: return 1
-
-        w = Worker(_getid(), self, auth=self.auth)
-        return w
-
-    def write(self, chan, msg="", force=False):
-        if chan.startswith('#'): chan = chan[1:]
-        for w in self.workers.values():
-            if w == None: continue
-            if chan.lower() in w.channels:
-                w.push("MSG", chan=chan.lower(), msg=msg)
-            elif force:
-                w.joinChannel(chan.lower())
-                w.push("MSG", chan=chan.lower(), msg=msg)
-                w.partChannel(chan.lower(), "Done")
-        print '%s -> %s' % (msg, chan)
-
-    def addWorker(self, worker):
-        self.workers[worker.id] = worker
-        #self.workers[worker.id].getChannels() #@DEV This is done when we're ready
-
-    def rmvWorker(self, wid):
-        self.workers[wid] = None
-
-    def quit(self):
+    def quit(self, msg):
         for i in self.workers.values():
-            if not i: continue
-            i.push('SHUTDOWN')
+            if i != None: i.quit(msg)
 
-    def ping(self):
-        for worker in self.workers.values():
-            if worker: worker.ping()
-        time.sleep(15)
-        for worker in self.workers.values():
-            if not worker: continue
-            if worker.waitingForPong:
-                print "Worker #%s timed out on pong!" % worker.id
-                worker.kill()
-
-class Worker(object):
-    def __init__(self, wid, network, auth=""):
-        self.id = wid
-        self.network = network
-        self.auth = auth
-        self.A = self.network.master.A
-        self.channels = []
-        self.whois = {}
-
-        self.ready = False
-        self.active = True
-        self.waitingForPong = False
-
-    def getUserInfo(self, user): #@TODO If we call this at the same time, one function wont get the call back D:
-        chan = str(random.randint(1111, 9999))
-        self.push('UINFO', user=user, chan=chan)
-        val = red.blpop(chan, 15)
-        try:
-            val = json.loads(val[1])
-        except:
-            print "Cannot load getUserInfo!"
-            return None
-        return val
-
-    def setup(self, chan):
-        self.nick = "%s%s" % (self.network.nickbase, self.id)
-        self.chan = "irc.worker.%s" % self.id
-        self.network.addWorker(self)
-        red.publish(chan, json.dumps({
-            'id':self.id,
-            'nick':self.nick,
-            'server':self.network.name,
-            'nid':self.network.id,
-            'auth':self.auth
-        }))
-        thread.start_new_thread(self.waitForReady, ())
-
-    def getChan(self, name):
-        return self.network.channels[name.strip()]
-
-    def parse(self, m):
-        if 'chan' in m.keys():
-            m['chan'] = m['chan'].replace('#', '').lower()
-        if m['tag'] == "BYE": 
-            self.kill()
-        elif m['tag'] == "MSG":
-            print 'MSG: %s >> %s | %s' % (m['nick'], m['dest'], m['msg'])
-            if m['nick'].startswith(self.network.nickbase): return
-            if self.A.parse(self, m): return
-            if m['dest'].startswith('#'):
-                self.A.fireHook('chanmsg', chan=m['dest'].replace('#', ''), nick=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
-            else:
-                self.A.fireHook('privmsg', nick=m['nick'], msg=m['msg'], m=m['msg'].split(' '), w=self)
-        elif m['tag'] == "NAMES": self.getChan(m['chan']).addByNames(m['nicks'])
-        elif m['tag'] == "TOPIC": self.getChan(m['chan']).setTopic(m['topic'])
-        elif m['tag'] == "JOIN":
-            self.A.fireHook('join', nick=m['nick'], chan=m['chan'], w=self)
-            self.getChan(m['chan']).addByNick(m['nick'])
-        elif m['tag'] == "PART":
-            self.A.fireHook('part', nick=m['nick'], chan=m['chan'], msg=m['msg'], w=self)
-            self.getChan(m['chan']).rmvByNick(m['nick'])
-        elif m['tag'] == "READY":
-            self.ready = True
-            self.getChannels()
-        elif m['tag'] == "PONG": self.waitingForPong = False
-        else: print m
-
-    def getChannels(self): #@TODO Implement more bots per channel
-        num = (len(self.network.channels)/len(self.network.workers))
-
-        if len(self.network.workers) > 1:
-            for i in self.network.workers.values():
-                if num and i != self and i != None and len(i.channels) > 1:
-                    c = i.channels[0]
-                    i.partChannel(c)
-                    self.joinChannel(c)
-                    num -= 1
-        else:
-            for i in self.network.channels.values():
-                self.joinChannel(i)
-
-    def write(self, chan, msg):    
-        self.network.write(chan, msg)
-
-    def writeUser(self, user, msg): #@NOTE This should /never/ be random, or pms will be in different tabs for users.
-        self.push('UMSG', user=user, msg=msg)
-
-    def push(self, tag, **kwargs):
-        kwargs['tag'] = tag
-        red.publish(self.chan, json.dumps(kwargs)) #@DEV If we want, we can eventually zlib this
-
-    def kill(self):
-        print 'Worker #%s is going down.' % self.id
-        self.network.rmvWorker(self.id)
-        self.active = False
+    def write(self, chan, msg):
+        if chan in self.channels.keys():
+            k = {'tag':'MSG', 'msg':msg}
+            red.rpush('i.%s.chan.%s' % (self.id, self.chan), json.dumps(k))
 
     def joinChannel(self, chan):
-        if isinstance(chan, Channel):
-            chan = chan.name
-        self.channels.append(chan)
-        self.push("JOIN", chan="#"+chan)
+        chan = chan.replace('#', '')
+        red.delete('i.%s.chan.%s' % (self.id, chan))
+        m = None
+        for i in self.workers.values():
+            if m == None: m = i
+            elif len(m.chans) > len(i.chans): m = i
+        self.channels[chan] = m
+        if m != None:
+            m.join(chan)
+            red.sadd('i.%s.chans' % self.id, chan)
 
-    def partChannel(self, chan, msg="Bot Swap..."):
-        if isinstance(chan, Channel):
-            chan = chan.name
-        self.channels.pop(self.channels.index(chan))
-        self.push("PART", chan="#"+chan, msg=msg)
+    def partChannel(self, chan, msg="Leaving..."):
+        chan = chan.replace('#', '')
+        red.delete('i.%s.chan.%s' % (self.id, chan))
+        self.channels[chan].part(chan, msg)
+        red.srem('i.%s.chans' % self.id, chan)
+        self.channels[chan] = None
 
-    def waitForReady(self):
-        time.sleep(20)
-        if not self.ready:
-            print "Bot failed to get ready!"
-            self.kill()
+    def getNumWorkers(self):
+        return red.get('i.%s.workers' % self.id)
+
+    def addWorker(self, reply):
+        if None in self.workers.values():
+            for k in self.workers:
+                if self.workers[k] == None:
+                    self.workers[k] = Worker(k, self)
+                    break
+        elif len(self.workers):
+            k = max(self.workers.keys())+1
+            self.workers[k] = Worker(k, self)
+        else:
+            k = 1
+            self.workers[k] = Worker(k, self)
+
+        red.sadd('i.%s.workers' % self.id, k)
+        red.delete('i.%s.worker.%s' % (self.id, k)) #Make sure we empty stuff
+        self.workers[k].setup(reply)
+
+    def setupWorker(self, k):
+        q = lambda: [i for i in self.workers.values() if i != None]
+        if len(self.workers) <= 1:
+            for chan in self.channels.keys():
+                self.workers[k].join(chan)
+        else:
+            if len(self.channels) > len(q()):
+                limit = len(self.channels) - len(q())
+            else:
+                limit = len(self.channels)
+            c = chunks(self.channels.keys(), limit)
+            print c
+            for pos, w in enumerate(self.workers.values()):
+                if w == None: continue
+                if pos+1 > len(c): break
+                for i in c[pos]:
+                    if i in w.chans: continue
+                    self.channels[i].part(i, 'Bot Swapping...')
+                    w.join(i)
+
+    def rmvWorker(self, wid): #@TODO Reallocate channels?
+        red.srem('i.%s.workers' % self.id, wid)
+        self.workers[wid] = None
 
     def ping(self):
-        self.waitingForPong = True
-        self.push('PING')
+        for i in self.workers.values():
+            if i == None: continue
+            thread.start_new_thread(i.ping, ())
+
+    def recover(self, m):
+        print 'Recovering worker #%s' % m['id']
+        m['id'] = int(m['id'])
+        self.workers[m['id']] = Worker(m['id'], self)
+        for i in m['chans']:
+            self.workers[m['id']].join(i.replace('#', ''), send=False)
 
 class Master(object):
-    def __init__(self): pass
-
-    def boot(self, Q):
-        self.procQ = Q
+    def boot(self):
+        self.parent, self.id = self.getID()
         self.active = True
+        self.isMaster = False if self.parent else True
         self.networks = {}
-        netinc = 1
-        for num, i in enumerate(cfg.servers):
-            print num, i
-            self.networks[num+1] = Network(num+1, i['host'], self, i['chans'], i.get('auth', ''))
-        self.workers = {}
-
-        self.A = A
-        self.A.master = self
-        self.A.red = red
-        self.A.loadMods(plugins)
-        self.A.setConfig(cfg)
-
-        thread.start_new_thread(self.pingLoop, ())
-
         self.sub = red.pubsub()
+        self.netchoice = 1
+        self.update()
+        self.parser = Parser(red, api.A)
+
+        for num, i in enumerate(cfg.networks):
+            self.networks[num] = Network(num, i['host'], self, channels=i['chans'], auth=i['auth'])
+
+        thread.start_new_thread(self.readLoop, ())
+        thread.start_new_thread(self.pingLoop, ())
+        thread.start_new_thread(self.parser.parseLoop, ()) #@DEV Just while we dont use start.py
+
+        try:
+            if self.isMaster:
+                red.delete('i.parseq')
+                for i in self.networks.values():
+                    i.boot()
+                thread.start_new_thread(self.masterLoop, ())
+            while True:
+                time.sleep(5) #Keep threads running
+        except: 
+            if red.zcard('i.masters') > 1: red.publish('irc.m', json.dumps({'tag':'MOVE'}))
+            else:
+                for i in self.networks.values():
+                    if i != None: i.quit("MAYDAY! We're going down!")
+                sys.exit()
+            red.zrem('i.masters', self.id)
+    
+    def update(self):
+        red.zadd('i.masters', self.id, self.id)
+        
+    def getID(self):
+        q = red.zcard('i.masters')
+        if q != 0:
+            return q, q+1
+        return None, 1
+        
+    def push(self, c, tag, **kwargs):
+        kwargs['tag'] = tag.upper()
+        red.lpush(c, json.dumps(kwargs))
+
+    def recover(self):
+        self.isMaster = True
+        self.parent = None
+        thread.start_new_thread(self.masterLoop, ())
+        for nid in self.networks.keys():
+            for i in red.smembers('i.%s.workers' % nid):
+                red.rpush('i.%s.worker.%s' % (nid, i), json.dumps({'tag':'ID'}))
+
+    def readLoop(self):
+        self.subby = red.pubsub()
+        self.subby.subscribe('irc.m.%s' % self.id)
+        self.subby.subscribe('irc.m')
+        while self.active:
+            for q in self.subby.listen():
+                try: q = json.loads(q['data'])
+                except: 
+                    print '>>>', q
+                    continue
+                if q['tag'] == 'PING': red.lpush('i.temp.%s' % q['chan'], 'PONG')
+                elif q['tag'] == 'MOVE':
+                    print 'Moving!'
+                    self.id -= 1
+                    self.parent -= 1
+                    self.update()
+                    if self.id == 1: self.recover()
+        self.subby.unsubscribe('irc.m.%s' % self.id)
+        self.subby.unsubscribe('irc.m')
+
+    def masterLoop(self):
         self.sub.subscribe('irc.master')
-        try: self.redLoop()
-        except KeyboardInterrupt:
-            for i in self.networks.values():
-                i.quit()
-        finally:
-            self.sub.unsubscribe('irc.master')
-
-    def getNetwork(self, netid):
-        return self.networks[netid]
-
-    def addWorker(self, chan):
-        #@DEV Find the network with the least workers
-        m = (None, 100)
-        for i in self.networks.values():
-            if len(i.workers) < m[1]:
-                m = (i, len(i.workers))
-        w = m[0].getWorker()
-        print 'Booting worker #%s' % w.id
-        w.setup(chan)
-
-    def redLoop(self):
-        while True:
+        while self.active:
             for msg in self.sub.listen():
-                try: m = json.loads(msg['data'])
-                except: continue
-
-                if m['tag'] == 'HI': self.addWorker(m['resp'])
-                else: 
-                    thread.start_new_thread(self.networks[m['nid']].workers[m['id']].parse, (m,)) #@DEV This may /not/ need to be threaded
+                try: msg = json.loads(msg['data'])
+                except: 
+                    print '>>>', msg
+                    continue
+                if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
+                elif msg['tag'] == 'ID': 
+                    self.networks[msg['nid']].recover(msg)
+                elif 'nid' in msg and 'id' in msg:
+                    if self.networks[msg['nid']].workers[msg['id']] != None:
+                        self.networks[msg['nid']].workers[msg['id']].parse(msg)
+        self.sub.unsubscribe('irc.master')
 
     def pingLoop(self):
-        st = time.time()
+        print 'Is Master: %s' % self.isMaster
         while self.active:
-            for i in self.networks.values():
-                thread.start_new_thread(i.ping, ())
+            if self.isMaster:
+                for i in self.networks.values():
+                    i.ping()
+            else:
+                c = rand()
+                red.publish('irc.m.%s' % self.parent, json.dumps({'tag':'PING', 'chan':c}))
+                if not red.blpop('i.temp.%s' % c, 10):
+                    print 'Master #%s timed out on ping! Moving up in the line...' % self.parent
+                    red.delete('i.masters')
+                    red.publish('irc.m', json.dumps({'tag':'MOVE'}))
             time.sleep(20)
 
-if __name__ == '__main__':
-    print 'Please use start.py'
-   
+    def addWorker(self, reply):
+        print 'Adding worker!'
+        m = None
+        for i in self.networks.values():
+            if m == None: m = i
+            elif m.getNumWorkers() > i.getNumWorkers(): m = i
+        if m != None:
+            while len([i for i in m.workers.values() if i.ready == False]):
+                time.sleep(1)
+            m.addWorker(reply)
+
+#@TODO Add parsing of BYE tag
+
+m = Master()
+m.boot()
