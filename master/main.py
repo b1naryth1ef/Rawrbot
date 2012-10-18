@@ -223,6 +223,7 @@ class Master(object):
                 for i in self.networks.values():
                     if i != None: i.quit("MAYDAY! We're going down!")
                 sys.exit()
+        finally:
             red.zrem('i.masters', self.id)
     
     def update(self):
