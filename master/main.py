@@ -305,7 +305,7 @@ class Master(object):
             if m == None: m = i
             elif m.getNumWorkers() > i.getNumWorkers(): m = i
         if m != None:
-            while len([i for i in m.workers.values() if i.ready == False]):
+            while len([i for i in m.workers.values() if i != None and i.ready == False]):
                 time.sleep(1)
             m.addWorker(reply)
 
