@@ -15,7 +15,7 @@ class User(DBModel):
 User.create_table(True)
 
 class ConfigFile(object):
-    def __init__(self, name='config', path=[], default={}):
+    def __init__(self, name='config', path=['.'], default={}):
         self.configfile = name.replace('.cfg', '')
         path.append(self.configfile+'.cfg')
         self.configpath = os.path.join(*path)
