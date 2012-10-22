@@ -5,6 +5,8 @@ from parser import Parser
 from data import ConfigFile
 import api
 
+print 'Auto update ftw!'
+
 default_cfg = {
     'networks':[
         {
