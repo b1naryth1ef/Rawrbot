@@ -270,7 +270,7 @@ class Master(object):
                             print 'Error, we have a <1 ID'
                             sys.exit()
                 elif i['tag'] == 'UPD':
-                    print 'Recieved update... attempting to push.'
+                    print 'Recieved update: "%s"' % i['msg']
                     self.q.puts('update')
                     sys.exit()
         s.unsubscribe('irc.m.%s' % self.uid)

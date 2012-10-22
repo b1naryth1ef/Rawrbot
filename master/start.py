@@ -1,11 +1,11 @@
-from main import Master
+import main
 from multiprocessing import Process, Queue
-import time
+import time, os
 
 
 def loop():
     q = Queue()
-    m = Master()
+    m = main.Master()
     p = Process(target=m.boot, args=(q,))
     p.start()
 
@@ -13,6 +13,9 @@ def loop():
         time.sleep(60)  
     p.join()
 
-    if q.get() == 'update': return loop()
+    if q.get() == 'update': 
+        os.popen('git pull')
+        reload(main)
+        return loop()
 loop()
 
