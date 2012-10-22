@@ -1,23 +1,13 @@
 import main
-from multiprocessing import Process, Queue
-import time, os
+import time, os, sys
 
-
-def loop():
-    global main
-    q = Queue()
-    m = main.Master()
-    p = Process(target=m.boot, args=(q,))
-    p.start()
-
-    while True:
-        i = q.get(True, None)
-        if i == 'update':
-            p.terminate()
-            del sys.modules['main']
-            os.popen('git pull origin deploy')
-            os.wait()
-            import main
-            return loop()
-loop()
+while True:
+    o = os.popen('python main.py')
+    os.wait()
+    o = o.readlines()
+    print o
+    if not o[-1].startswith('update'): break
+    else:
+        os.popen('git pull origin deploy')
+        
 

@@ -189,8 +189,7 @@ class Network(object):
             self.workers[m['id']].join(i.replace('#', ''), send=False)
 
 class Master(object):
-    def boot(self, q):
-        self.q = q
+    def boot(self):
         self.uid = rand()
         self.parent = None
         self.num = None
@@ -271,7 +270,8 @@ class Master(object):
                             sys.exit()
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg']
-                    self.q.put('update')
+                    print 'update'
+                    self.active = False
                     sys.exit()
                 else:
                     print i
@@ -307,5 +307,5 @@ class Master(object):
                 time.sleep(1)
             m.addWorker(reply)
 
-#m = Master()
-#m.boot()
+m = Master()
+m.boot()
