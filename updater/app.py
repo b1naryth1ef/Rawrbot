@@ -6,13 +6,12 @@ app = Flask(__name__)
 
 @app.route('/hook/', methods=['POST'])
 def hook_view():
-    print request.json
     if request.json['ref'] == 'refs/heads/deploy':
         print 'Sending update'
         i = request.json['commits'][-1]
-        if len(i['commits']) > 1: plural = 's'
+        if len(request.json['commits']) > 1: plural = 's'
         else: plural = ''
-        m = '%s (%s commit%s pushed by %s)' % (i['message'], len(i['commits']), plural, i['author']['name'])
+        m = '%s (%s commit%s pushed by %s)' % (i['message'], len(request.json['commits']), plural, i['author']['name'])
         red.publish('irc.m', json.dumps({'tag':'UPD', 'msg':m}))
     return ':)'
 
