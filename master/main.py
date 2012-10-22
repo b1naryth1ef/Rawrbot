@@ -277,7 +277,7 @@ class Master(object):
         s.unsubscribe('irc.m')
 
     def masterLoop(self):
-        print 'Startin master loop! (test)'
+        print 'Startin master loop!'
         self.sub = red.pubsub()
         self.sub.subscribe('irc.master')
         while self.isMaster and self.active:
