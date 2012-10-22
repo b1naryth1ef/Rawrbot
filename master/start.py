@@ -11,7 +11,7 @@ def loop():
     while True: 
         if q.get(True, None) == 'update': 
             p.terminate()
-            os.popen('git pull')
+            os.popen('git pull origin master')
             reload(main)
             return loop()
 loop()
