@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 import redis
 
 red = redis.Redis(host='hydr0.com')
+app = Flask(__name__)
 
 @app.route('/hook/', methods=['POST'])
 def hook_view():
