@@ -273,6 +273,8 @@ class Master(object):
                     print 'Recieved update: "%s"' % i['msg']
                     self.q.puts('update')
                     sys.exit()
+                else:
+                    print i
         s.unsubscribe('irc.m.%s' % self.uid)
         s.unsubscribe('irc.m')
 
