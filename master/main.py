@@ -189,7 +189,8 @@ class Network(object):
             self.workers[m['id']].join(i.replace('#', ''), send=False)
 
 class Master(object):
-    def __init__(self):
+    def boot(self, q):
+        self.q = q
         self.uid = rand()
         self.parent = None
         self.num = None
@@ -268,6 +269,10 @@ class Master(object):
                             self.isMaster = False
                             print 'Error, we have a <1 ID'
                             sys.exit()
+                elif i['tag'] == 'UPD':
+                    print 'Recieved update... attempting to push.'
+                    self.q.puts('update')
+                    sys.exit()
         s.unsubscribe('irc.m.%s' % self.uid)
         s.unsubscribe('irc.m')
 
@@ -300,127 +305,5 @@ class Master(object):
                 time.sleep(1)
             m.addWorker(reply)
 
-# class Master(object):
-#     def boot(self):
-#         self.parent, self.id = self.getID()
-#         self.active = True
-#         self.isMaster = False if self.parent else True
-#         self.networks = {}
-#         self.sub = red.pubsub()
-#         self.netchoice = 1
-#         self.update()
-#         self.parser = Parser(red, api.A)
-
-#         for num, i in enumerate(cfg.networks):
-#             self.networks[num] = Network(num, i['host'], self, channels=i['chans'], auth=i['auth'])
-
-#         thread.start_new_thread(self.readLoop, ())
-#         thread.start_new_thread(self.pingLoop, ())
-#         thread.start_new_thread(self.parser.parseLoop, ()) #@DEV Just while we dont use start.py
-
-#         try:
-#             if self.isMaster:
-#                 red.delete('i.parseq')
-#                 for i in self.networks.values():
-#                     i.boot()
-#                 thread.start_new_thread(self.masterLoop, ())
-#             while True:
-#                 time.sleep(5) #Keep threads running
-#         except: 
-#             if red.zcard('i.masters') > 1: red.publish('irc.m', json.dumps({'tag':'MOVE'}))
-#             else:
-#                 for i in self.networks.values():
-#                     if i != None: i.quit("MAYDAY! We're going down!")
-#                 sys.exit()
-#         finally:
-#             print 'Removing ID!'
-#             print self.id, red.zrange('i.masters', -1, 100)
-#             print red.zrem('i.masters', self.id)
-    
-#     def update(self):
-#         red.zadd('i.masters', self.id, self.id)
-        
-#     def getID(self):
-#         q = red.zcard('i.masters')
-#         if q != 0:
-#             return q, q+1
-#         return None, 1
-        
-#     def push(self, c, tag, **kwargs):
-#         kwargs['tag'] = tag.upper()
-#         red.lpush(c, json.dumps(kwargs))
-
-#     def recover(self):
-#         self.isMaster = True
-#         self.parent = None
-#         thread.start_new_thread(self.masterLoop, ())
-#         for nid in self.networks.keys():
-#             for i in red.smembers('i.%s.workers' % nid):
-#                 red.rpush('i.%s.worker.%s' % (nid, i), json.dumps({'tag':'ID'}))
-
-#     def readLoop(self):
-#         self.subby = red.pubsub()
-#         self.subby.subscribe('irc.m.%s' % self.id)
-#         self.subby.subscribe('irc.m')
-#         while self.active:
-#             for q in self.subby.listen():
-#                 try: q = json.loads(q['data'])
-#                 except: 
-#                     print '>>>', q
-#                     continue
-#                 if q['tag'] == 'PING': red.lpush('i.temp.%s' % q['chan'], 'PONG')
-#                 elif q['tag'] == 'MOVE':
-#                     print 'Moving!'
-#                     self.id -= 1
-#                     if self.parent: self.parent -= 1
-#                     self.update()
-#                     if self.id == 1: self.recover()
-#         self.subby.unsubscribe('irc.m.%s' % self.id)
-#         self.subby.unsubscribe('irc.m')
-
-#     def masterLoop(self):
-#         self.sub.subscribe('irc.master')
-#         while self.active:
-#             for msg in self.sub.listen():
-#                 try: msg = json.loads(msg['data'])
-#                 except: 
-#                     print '>>>', msg
-#                     continue
-#                 if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
-#                 elif msg['tag'] == 'ID': 
-#                     self.networks[msg['nid']].recover(msg)
-#                 elif 'nid' in msg and 'id' in msg:
-#                     if self.networks[msg['nid']].workers[msg['id']] != None:
-#                         self.networks[msg['nid']].workers[msg['id']].parse(msg)
-#         self.sub.unsubscribe('irc.master')
-
-#     def pingLoop(self):
-#         print 'Is Master: %s' % self.isMaster
-#         while self.active:
-#             if self.isMaster:
-#                 for i in self.networks.values():
-#                     i.ping()
-#             else:
-#                 c = rand()
-#                 red.publish('irc.m.%s' % self.parent, json.dumps({'tag':'PING', 'chan':c}))
-#                 if not red.blpop('i.temp.%s' % c, 10):
-#                     print 'Master #%s timed out on ping! Moving up in the line...' % self.parent
-#                     red.delete('i.masters')
-#                     red.publish('irc.m', json.dumps({'tag':'MOVE'}))
-#             time.sleep(20)
-
-#     def addWorker(self, reply):
-#         print 'Adding worker!'
-#         m = None
-#         for i in self.networks.values():
-#             if m == None: m = i
-#             elif m.getNumWorkers() > i.getNumWorkers(): m = i
-#         if m != None:
-#             while len([i for i in m.workers.values() if i != None and i.ready == False]):
-#                 time.sleep(1)
-#             m.addWorker(reply)
-
-#@TODO Add parsing of BYE tag
-
-m = Master()
+#m = Master()
 #m.boot()
