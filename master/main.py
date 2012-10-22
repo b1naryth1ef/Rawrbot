@@ -271,7 +271,7 @@ class Master(object):
                             sys.exit()
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg']
-                    self.q.puts('update')
+                    self.q.put('update')
                     sys.exit()
                 else:
                     print i
