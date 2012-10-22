@@ -7,7 +7,7 @@ app = Flask(__name__)
 @app.route('/hook/', methods=['POST'])
 def hook_view():
     print request.json
-    if request.json['ref'] == '/ref/heads/deploy':
+    if request.json['ref'] == 'refs/heads/deploy':
         print 'Sending update'
         i = request.json['commits'][-1]
         if len(i['commits']) > 1: plural = 's'
