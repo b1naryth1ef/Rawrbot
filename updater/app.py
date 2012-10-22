@@ -12,6 +12,7 @@ def hook_view():
         else: plural = ''
         m = '%s (%s commit%s pushed by %s)' % (i['message'], len(i['commits']), plural, i['author']['name'])
         red.publish('irc.m', json.dumps({'tag':'UPD', 'msg':m}))
+    return ':)'
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=9010)
