@@ -1,13 +1,17 @@
 import main
-import time, os, sys
+from multiprocessing import Process, Queue
+import time, os
 
-while True:
-    o = os.popen('python main.py')
-    os.wait()
-    o = o.readlines()
-    print o
-    if not o[-1].startswith('update'): break
-    else:
-        os.popen('git pull origin deploy')
-        
+def loop():
+    q = Queue()
+    m = main.Master()
+    p = Process(target=m.boot, args=(q,))
+    p.start()
 
+    while True: 
+        if q.get(True, None) == 'update': 
+            p.terminate()
+            os.popen('git pull')
+            reload(main)
+            return loop()
+loop()

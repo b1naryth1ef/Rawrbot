@@ -20,7 +20,7 @@ rand = lambda: random.randint(11111, 99999)
 chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
 
 red = redis.Redis(host="hydr0.com", password="")
-cfg = ConfigFile(name="config", default=default_cfg)
+cfg = ConfigFile(name="config", default=default_cfg, path=['.'])
 api.A = api.API(red)
 
 class Worker(object):
@@ -189,7 +189,8 @@ class Network(object):
             self.workers[m['id']].join(i.replace('#', ''), send=False)
 
 class Master(object):
-    def boot(self):
+    def boot(self, q):
+        self.q = q
         self.uid = rand()
         self.parent = None
         self.num = None
@@ -270,9 +271,9 @@ class Master(object):
                             sys.exit()
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg']
-                    print 'update'
                     self.active = False
-                    sys.exit()
+                    if self.isMaster: red.publish('irc.master', '')
+                    self.q.put('update')
                 else:
                     print i
         s.unsubscribe('irc.m.%s' % self.uid)
@@ -307,5 +308,5 @@ class Master(object):
                 time.sleep(1)
             m.addWorker(reply)
 
-m = Master()
-m.boot()
+#m = Master()
+#m.boot()
