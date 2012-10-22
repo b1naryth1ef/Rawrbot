@@ -135,9 +135,6 @@ class Network(object):
         red.srem('i.%s.chans' % self.id, chan)
         self.channels[chan] = None
 
-    def getNumWorkers(self):
-        return red.get('i.%s.workers' % self.id)
-
     def addWorker(self, reply):
         if None in self.workers.values():
             for k in self.workers:
@@ -224,7 +221,9 @@ class Master(object):
                     if i != None: i.quit("MAYDAY! We're going down!")
                 sys.exit()
         finally:
-            red.zrem('i.masters', self.id)
+            print 'Removing ID!'
+            print self.id, red.zrange('i.masters', -1, 100)
+            print red.zrem('i.masters', self.id)
     
     def update(self):
         red.zadd('i.masters', self.id, self.id)
@@ -261,7 +260,7 @@ class Master(object):
                 elif q['tag'] == 'MOVE':
                     print 'Moving!'
                     self.id -= 1
-                    self.parent -= 1
+                    if self.parent: self.parent -= 1
                     self.update()
                     if self.id == 1: self.recover()
         self.subby.unsubscribe('irc.m.%s' % self.id)

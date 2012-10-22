@@ -89,6 +89,15 @@ class Worker(object):
                 dest = m[2]
                 msg = m[3][1:]
                 self.p("MSG", dest=dest, msg=msg, nick=nick, host=host)
+            elif m[1] == "KICK":
+                m = msg.split(' ', 4)
+                chan = m[2]
+                kicked = m[3]
+                if kicked == self.nick: us = True
+                else: us = False
+                msg = m[4][1:]
+                self.p('KICK', chan=chan, msg=msg, kicked=kicked, nick=nick, host=host, us=us)
+
 
     def p(self, tag, **kwargs): #Any master can parse a message pushed here
         kwargs['tag'] = tag
@@ -100,6 +109,7 @@ class Worker(object):
         self.c.write(*args, **kwargs)
 
     def join(self, chan):
+        print 'Joining %s' % chan
         if not chan.startswith('#'): chan = "#"+chan
         self.channels.append(chan)
         self.write('JOIN %s' % chan)

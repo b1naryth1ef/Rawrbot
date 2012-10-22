@@ -15,6 +15,7 @@ class Parser(object):
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', q)
         elif q['tag'] == 'NAMES':
+            print q['nicks']
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
                 k = {}
@@ -28,6 +29,14 @@ class Parser(object):
         elif q['tag'] == 'TOPIC': pass
         elif q['tag'] == 'JOIN': pass
         elif q['tag'] == 'PART': pass
+        elif q['tag'] == 'KICK':
+            if q['us']:
+                m = {
+                    'tag':'JOIN',
+                    'chan':q['chan']
+                }
+                self.red.rpush('i.%s.worker.%s' % (q['nid'], q['id']), json.dumps(m))
+
 
     def parseLoop(self):
         while True:

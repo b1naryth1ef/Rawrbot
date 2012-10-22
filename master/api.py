@@ -138,7 +138,7 @@ class API(object):
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[]):
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc=""):
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug':plugin,
@@ -147,7 +147,8 @@ class API(object):
             'kwargs':kwargs,
             'kbool':kbool,
             'usage':usage,
-            'alias':alias
+            'alias':alias,
+            'desc':desc,
         }
 
     def rmvCommand(self, name):
