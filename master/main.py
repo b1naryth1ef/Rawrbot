@@ -204,6 +204,7 @@ class Master(object):
         self.networks = {}
         for num, i in enumerate(cfg.networks):
             self.networks[num] = Network(num, i['host'], self, channels=i['chans'], auth=i['auth'])
+            self.networks[num].boot()
 
         if red.llen('i.masters'):
             self.parent = red.lindex('i.masters', -1)
@@ -211,12 +212,17 @@ class Master(object):
         else:
             self.isMaster = True
             self.num = 1
+            red.delete('i.parseq')
+            for net in self.networks.values():
+                for chan in net.channels:
+                    red.delete('i.%s.chan.%s.users' % (net.id, chan))
             red.rpush('i.masters', self.uid)
             thread.start_new_thread(self.masterLoop, ())
 
         print 'We are #%s, and #%s in the queue!' % (self.uid, self.num)
 
         try:
+            thread.start_new_thread(self.parser.parseLoop, ())
             thread.start_new_thread(self.pingLoop, ())
             thread.start_new_thread(self.waitLoop, ())
             while True:
@@ -224,8 +230,14 @@ class Master(object):
         except:
             print 'Error!'
         finally:
-            red.publish('irc.m', {'tag':'DC', 'index':1, 'id':self.uid})
-            red.lrem('i.masters', self.uid, 0)
+            self.quit()
+
+    def quit(self):
+        red.publish('irc.m', {'tag':'DC', 'index':1, 'id':self.uid})
+        red.lrem('i.masters', self.uid, 0)
+        if red.llen('i.masters') == 0:
+            for i in self.networks.values():
+                i.quit('Bot is going down (no master to recover!)')
 
     def recover(self):
         for nid in self.networks.keys():
@@ -275,6 +287,7 @@ class Master(object):
                     print 'Recieved update: "%s"' % i['msg']
                     self.active = False
                     if self.isMaster: red.publish('irc.master', '')
+                    self.quit()
                     self.q.put('update')
                 else:
                     print i
@@ -294,6 +307,7 @@ class Master(object):
                 if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
                 elif msg['tag'] == 'ID': self.networks[msg['nid']].recover(msg)
                 elif 'nid' in msg and 'id' in msg:
+                    if msg['id'] not in self.networks[msg['nid']].workers.keys(): continue
                     if self.networks[msg['nid']].workers[msg['id']] != None:
                         self.networks[msg['nid']].workers[msg['id']].parse(msg)
         self.sub.unsubscribe('irc.master')

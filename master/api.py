@@ -42,7 +42,14 @@ class Plugin():
         self.api.plugins[self.realname] = self
 
     def loaded(self):
+        print self.api.mods[self.realname]
         self.mod = self.api.mods[self.realname]
+
+    def loop(self):
+        def deco(func):
+            self.api.loops.append(func)
+            return func
+        return deco
 
     def cmd(self, name, **kwargs): #@TYPE Decorator
         def deco(func):
@@ -66,9 +73,9 @@ class Plugin():
 
     def unload(self):
         if hasattr(self.mod, 'onUnload'): self.onUnload()
-        for i in cmds:
+        for i in self.cmds:
             self.api.rmvCommand(i)
-        for i in hooks:
+        for i in self.hooks:
             self.api.rmvHook(i)
 
 class API(object):
@@ -79,8 +86,18 @@ class API(object):
         self.mods = {}
         self.plugins = {}
         self.commands = {}
+        self.alias = {}
         self.hook_key = {}
         self.hooks = {}
+        self.loops = []
+
+        thread.start_new_thread(self.loop, ())
+
+    def loop(self):
+        while True:
+            for i in self.loops:
+                i()
+            time.sleep(10)
 
     def validChan(self, net, chan):
         return self.red.sismember('i.%s.chans' % net, chan)
@@ -134,9 +151,13 @@ class API(object):
             thread.start_new_thread(obj._cmd['f'], (obj,))
             return True
         else:
+            last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
+            if last and time.time()-last < 5: return #Prevent spamming
             msg = 'No such command "%s"!' % obj._name
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+            self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
+            self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
     def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc=""):
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
@@ -151,6 +172,9 @@ class API(object):
             'desc':desc,
         }
 
+        for i in alias:
+            self.alias[i] = name
+
     def rmvCommand(self, name):
         if name in self.commands.keys():
             del self.commands[name]
@@ -158,6 +182,8 @@ class API(object):
     def getCommand(self, name):
         if name in self.commands.keys():
             return self.commands[name]
+        elif name in self.alias.keys():
+            return self.commands[self.alias[name]]
 
     def fireEvent(self, name, data):
         if name.upper() in self.hooks:
@@ -197,8 +223,10 @@ class API(object):
         if 'f' in self.plugins:
             self.plugins[f].loaded()
 
-    def reloadPlugins(self):
+    def reloadPlugins(self, call=None, *args, **kwargs):
         for plugin in self.plugins.values():
             plugin.reload()
+        if call:
+            call(*args, **kwargs)
 
 A = None

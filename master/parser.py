@@ -15,28 +15,24 @@ class Parser(object):
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', q)
         elif q['tag'] == 'NAMES':
-            print q['nicks']
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
-                k = {}
                 for i in q['nicks']:
                     if nickkey in i: continue #@NOTE We dont count ourselves
-                    if i.startswith('+'): k[i[1:]] = 1
-                    elif i.startswith('@'): k[i[1:]] = 2
-                    else: k[i] = 0
-                if len(k):
-                    self.red.zadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), **k)
+                    if i[0] in ['@', '+']: i = i[1:]
+                    self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), i.lower())
         elif q['tag'] == 'TOPIC': pass
-        elif q['tag'] == 'JOIN': pass
-        elif q['tag'] == 'PART': pass
+        elif q['tag'] == 'JOIN':
+            nickkey = self.red.get('i.%s.nickkey' % q['nid'])
+            if nickkey in q['nick']: return
+            self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
+        elif q['tag'] == 'PART':
+            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
         elif q['tag'] == 'KICK':
             if q['us']:
-                m = {
-                    'tag':'JOIN',
-                    'chan':q['chan']
-                }
+                m = {'tag':'JOIN', 'chan':q['chan']}
                 self.red.rpush('i.%s.worker.%s' % (q['nid'], q['id']), json.dumps(m))
-
+            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
 
     def parseLoop(self):
         while True:
