@@ -72,6 +72,12 @@ class Plugin():
     def loaded(self):
         self.mod = self.api.mods[self.realname]
 
+    def apih(self, name):
+        def deco(func):
+            self.api.apis[name] = func
+            return func
+        return deco
+
     def loop(self, delay=30):
         def deco(func):
             func.loop = LooopingThread(func=func, delay=delay)
@@ -91,7 +97,7 @@ class Plugin():
             func.id = self.api.addHook(self, name, func)
             self.hooks.append(func.id)
             return func
-        return deco
+        return hook
 
     def reload(self):
         self.unload()
@@ -116,6 +122,7 @@ class API(object):
         self.commands = {}
         self.alias = {}
         self.hook_key = {}
+        self.apis = {}
         self.hooks = {}
         self.loops = []
 
@@ -163,7 +170,11 @@ class API(object):
         else: obj.pm = False
         if obj._cmd:
             if len(self.master.networks[data['nid']].plugins):
-                if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins: return
+                if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins: 
+                    msg = "That command is not enabled here!"
+                    if obj.pm: self.writeUser(data, data['nick'], msg)
+                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+                    return
             if obj._cmd['admin'] is True and not obj.admin:
                 msg = "You must be an admin to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
@@ -187,7 +198,7 @@ class API(object):
             return True
         else:
             last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
-            if last and time.time()-int(last) < 5: return #Prevent spamming
+            if last and time.time()-float(last) < 5: return #Prevent spamming
             msg = 'No such command "%s"!' % obj._name
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
@@ -221,11 +232,11 @@ class API(object):
         elif name in self.alias.keys():
             return self.commands[self.alias[name]]
 
-    def fireEvent(self, name, data):
+    def fireEvent(self, name, **data):
         if name.upper() in self.hooks:
             obj = FiredEvent(self, name.upper(), data)
             for i in self.hooks[name]:
-                thread.start_new_thread(self.hook_key[i], obj)
+                thread.start_new_thread(self.hook_key[i][2], (obj, ))
 
     def addHook(self, plugin, hook, func):
         id = random.randint(1111111, 9999999)

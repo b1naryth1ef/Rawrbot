@@ -9,6 +9,37 @@ default_cfg = {
 
 cfg = ConfigFile(name='admin', path=['plugins', 'config'], default=default_cfg)
 
+@P.apih('admin_add_report')
+def adminAddReport(msg, nick, chan, net):
+    id = A.red.incr('i.p.core.reportid')
+    k = 'i.p.core.rep.%s' % id
+    A.red.hset(k, 'user', nick)
+    A.red.hset(k, 'chan', chan)
+    A.red.hset(k, 'msg', msg)
+    A.red.hset(k, 'active', 1)
+    for i in cfg.admin_chans:
+        if chan: c = '[%s]' % chan
+        else: c = ''
+        A.write(net, i, 'NEW REPORT #%s FILED BY %s: %s %s' % (id, nick, msg, c))
+    return True, id
+
+@P.apih('admin_edit_report')
+def adminEditReport(): pass
+
+@P.hook('KICK_W')
+def hookKickWorker(obj):
+    if A.red.exists('i.p.core.kickw.%s' % obj.kicked):
+        if int(A.red.get('i.p.core.kickw.%s' % obj.kicked)) > 10: #Got kicked 5 times
+            #@TODO Assign another worker or remove channel from list
+            return adminAddReport('Worker being continuely kicked from channl!', obj.kicked, obj.chan, obj.nid)
+        else:
+            A.red.incr('i.p.core.kickw.%s' % obj.kicked)
+            A.red.expire('i.p.core.kickw.%s' % obj.kicked, 600) #Key expires in 10 minutes
+            return #This prevents spamming reports
+    if not obj.msg: obj.msg = "No Message"
+    A.red.set('i.p.core.kickw.%s' % obj.kicked, 1)
+    adminAddReport('Worker kicked from channel: %s' % obj.msg, obj.kicked, obj.chan, obj.nid)
+
 @P.cmd('report', usage='{cmd} My message to admins', 
     desc="Send a message to the admins (IN ENGLISH), or ask for assistance. (Abuse results in banz!)")
 def cmdReport(obj):
@@ -19,14 +50,9 @@ def cmdReport(obj):
     A.red.set('i.p.core.repu.%s' % obj.nick, 1)
     A.red.expire('i.p.core.repu.%s' % obj.nick, 600) 
     msg = ' '.join(obj.m[1:])
-    id = A.red.incr('i.p.core.reportid')
-    k = 'i.p.core.rep.%s' % id
-    A.red.hset(k, 'user', obj.nick)
-    A.red.hset(k, 'chan', obj._data.get('dest'))
-    A.red.hset(k, 'msg', msg)
-    A.red.hset(k, 'active', 1)
-    for i in cfg.admin_chans:
-        obj.send(i, 'NEW REPORT #%s FILED BY %s: %s' % (id, obj.nick, msg))
+    result, id = adminAddReport(msg, obj.nick, obj._data.get('dest'), obj.nid)
+    if not result:
+        return obj.reply("There was an error filing your report!")
     return obj.reply('Your report (#%s) has been filed. Please be patient as we process it.' % id)
 
 @P.cmd('rlist', admin=True, kwargs=True, kbool=['active'],

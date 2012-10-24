@@ -61,7 +61,9 @@ class Worker(object):
     def join(self, chan, send=True):
         self.chans.append(chan)
         self.net.channels[chan] = self
-        if send: self.push('JOIN', chan=chan, pw=self.net.pws.get(chan, ''))
+        if chan in self.net.pws: pw = red.get('i.%s.chan.%s.pw' % (self.nid, chan))
+        else: pw = None
+        if send: self.push('JOIN', chan=chan, pw=pw)
 
     def part(self, chan, msg, send=True):
         self.chans.remove(chan)
@@ -106,7 +108,7 @@ class Network(object):
         self.name = name
         self.master = master
         self.channels = {}
-        self.pws = {}
+        self.pws = []
         self.auth = auth
         self.nickkey = "RawrBot"
         self.workers = {}
@@ -114,8 +116,10 @@ class Network(object):
         self.plugins = plugins
 
         for i in channels:
-            if isinstance(i, list): 
-                self.pws[i[0].replace('#', '')] = i[1]
+            if isinstance(i, list):
+                chan = i[0].replace('#', '')
+                red.set('i.%s.chan.%s.pw' % (self.id, chan), i[1])
+                self.pws.append(chan)
                 i = i[0]
             self.channels[i.replace('#', '')] = None
 

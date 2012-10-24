@@ -19,7 +19,7 @@ class Parser(object):
         if q['tag'] == "MSG":
             if q['msg'].startswith(self.A.prefix) and q['msg'][1] != ' ': 
                 if self.A.parseCommand(q): return
-            self.A.fireEvent('CHANMSG', q)
+            self.A.fireEvent('CHANMSG', **q)
         elif q['tag'] == 'NAMES':
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
@@ -32,12 +32,19 @@ class Parser(object):
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey in q['nick']: return
             self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
+            self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'].replace('#', ''), nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'PART':
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
+            self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'].replace('#', ''), msg=q['msg'], nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'KICK':
+            q['chan'] = q['chan'].replace('#', '')
+            q['kicked'] = q['kicked'].lower()
+            q['nick'] = q['nick'].lower()
             if q['us']:
-                m = {'tag':'JOIN', 'chan':q['chan']}
+                m = {'tag':'JOIN', 'chan':q['chan'], 'pw':self.red.get('i.%s.chan.%s.pw' % (q['nid'], q['chan']))}
                 self.red.rpush('i.%s.worker.%s' % (q['nid'], q['id']), json.dumps(m))
+                return self.A.fireEvent('KICK_W', **q)
+            self.A.fireEvent('KICK', **q)
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
 
     def parseLoop(self):
