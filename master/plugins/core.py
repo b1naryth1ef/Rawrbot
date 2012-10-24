@@ -1,7 +1,20 @@
 from api import Plugin, A
-import json, time
+import json, time, random
 
 P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
+
+s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroys']
+s_bodyparts = ['tentacle', 'arm', 'face', 'head', 'dick', 'foot', 'finger']
+s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot']
+
+@P.cmd('slap', admin=True, usage="{cmd} user")
+def cmdSlap(obj):
+    act = random.choice(s_actions)
+    bp = random.choice(s_bodyparts)
+    tool = random.choice(s_tools)
+    if len(obj.m) < 2: return obj.usage()
+    m = "%s %s's %s across the %s with a %s." % (obj.nick, act, obj.m[1], bp, tool)
+    obj.smu(m)
 
 @P.cmd('help')
 def cmdHelp(obj):

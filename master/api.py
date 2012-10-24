@@ -40,6 +40,9 @@ class FiredCommand(FiredEvent):
     def pmu(self, msg):
         self.privmsg(self.nick, msg)
 
+    def smu(self, msg):
+        self.send(self.dest, msg)
+
     def usage(self):
         i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
         self.reply(self._prefix+i)
