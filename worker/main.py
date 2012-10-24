@@ -33,6 +33,14 @@ class Worker(object):
         except:
            self.quit()
 
+    def checkForPing(self):
+        while self.active:
+            self.pinged = False
+            time.sleep(60)
+            if not self.pinged:
+                print "Master has not pinged us, going down!"
+                self.quit("Master ping-out")
+
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
 
@@ -159,6 +167,7 @@ class Worker(object):
             print 'Failed to connect!'
             sys.exit()
         self.push('READY')
+        thread.start_new_thread(self.checkForPing, ())
         self.ready = True
         for i in self.readyq:
             i = self.readyq.popleft()
