@@ -3,6 +3,8 @@ from pkgs import rcon
 import socket
 import struct
 
+print 'Loaded!'
+
 class MCQuery(): #Based off https://github.com/barneygale/MCQuery/
     id = 0
     def __init__(self, host, port):
@@ -50,20 +52,19 @@ class MCQuery(): #Based off https://github.com/barneygale/MCQuery/
             data[k] = int(data[k])
         return data
 
-
 P = Plugin(A, "Utils", 0.1, "B1naryTh1ef")
 
-@P.cmd('!urt', usage="{cmd} [IP/Host[:port]]", desc="Get info for a UrT Server")
+@P.cmd('urt', usage="{cmd} [IP/Host[:port]]", desc="Get info for a UrT Server")
 def cmdUrt(obj):
     if len(obj.m) < 2: return obj.usage()
     if ':' in obj.m[1]: host, port = obj.m[1].split(':', 1)
     else: 
         host = obj.m[1]
         port = 27960
-    o = rcon.RCON(server=host, port=port, password="").rcon('getstatus')
+    o = rcon.RCON(server=host, port=int(port), password="").getstatus()
     print o
 
-@P.cmd('!mc', usage="{cmd} [IP/Host[:port]]", desc="Get info for a mc server (needs to have querying enabled!)")
+@P.cmd('mc', usage="{cmd} [IP/Host[:port]]", desc="Get info for a mc server (needs to have querying enabled!)")
 def cmdMc(obj):
     if len(obj.m) < 2: return obj.usage()
     if ':' in obj.m[1]: host, port = obj.m[1].split(':', 1)
@@ -77,5 +78,5 @@ def cmdMc(obj):
         obj.reply('MOTD: %s' % o['motd'])
         obj.reply('Players: %s' % (', '.join(o['players'])))
 
-@P.cmd('!ts3', usage="{cmd} [IP/Host]", desc="Get info for a TS3 server")
+@P.cmd('ts3', usage="{cmd} [IP/Host]", desc="Get info for a TS3 server")
 def cmdTs3(obj): pass

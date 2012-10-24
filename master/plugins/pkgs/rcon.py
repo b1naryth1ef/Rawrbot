@@ -81,6 +81,12 @@ class RCON:
             new = i if not new else new + '%s' % re.findall('(\^[0-9a-z])', new)[-1] + i
         return new
 
+    def getstatus(self):
+        self.lock.acquire(1)
+        reply = self.cmd('getstatus')
+        self.lock.release()
+        _, data, players = reply.split('\n', 2)
+
     def rcon(self, cmd):
         """
         Send an rcon command, cmd

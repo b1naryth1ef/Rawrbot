@@ -195,6 +195,7 @@ class API(object):
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
     def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc=""):
+       # print 'Adding %s' % name
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug':plugin,
