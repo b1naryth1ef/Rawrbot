@@ -2,9 +2,11 @@ import json, thread
 import api
 
 class Parser(object):
-    def __init__(self, red, a):
+    def __init__(self, master, red, a):
+        self.master = master
         self.red = red
         self.A = a
+        self.A.master = master
         self.A.loadPlugins()
 
     def takeMaster(self):
@@ -15,7 +17,7 @@ class Parser(object):
 
     def parse(self, q):
         if q['tag'] == "MSG":
-            if q['msg'].startswith(self.A.prefix): 
+            if q['msg'].startswith(self.A.prefix) and q['msg'][1] != ' ': 
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', q)
         elif q['tag'] == 'NAMES':

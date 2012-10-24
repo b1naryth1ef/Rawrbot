@@ -108,11 +108,11 @@ class Worker(object):
     def write(self, *args, **kwargs):
         self.c.write(*args, **kwargs)
 
-    def join(self, chan):
+    def join(self, chan, pw=None):
         print 'Joining %s' % chan
         if not chan.startswith('#'): chan = "#"+chan
         self.channels.append(chan)
-        self.write('JOIN %s' % chan)
+        self.write('JOIN %s %s' % (chan, pw))
 
     def part(self, chan, msg="Leaving"):
         if not chan.startswith('#'): chan = "#"+chan
@@ -129,7 +129,7 @@ class Worker(object):
                 print "Bad message: %s" % msg
                 continue
             if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
-            elif q['tag'] == 'JOIN': self.join(q['chan'])
+            elif q['tag'] == 'JOIN': self.join(q['chan'], q['pw'])
             elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
             elif q['tag'] == "PING": 
                 self.pinged = True

@@ -37,6 +37,9 @@ class FiredCommand(FiredEvent):
         if self.pm: self.privmsg(self.nick, msg)
         else: self.send(self.dest, '%s: %s' % (self.nick, msg))
 
+    def pmu(self, msg):
+        self.privmsg(self.nick, msg)
+
     def usage(self):
         i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
         self.reply(self._prefix+i)
@@ -152,10 +155,13 @@ class API(object):
         obj.m = m
         obj._prefix = self.prefix
         obj._cmd = self.getCommand(obj._name)
+        obj.admin = self.isAdmin(data['nid'], data['host'])
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
-            if obj._cmd['admin'] is True and not self.isAdmin(data['nid'], data['host']):
+            if len(self.master.networks[data['nid']].plugins):
+                if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins: return
+            if obj._cmd['admin'] is True and not obj.admin:
                 msg = "You must be an admin to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
@@ -178,7 +184,7 @@ class API(object):
             return True
         else:
             last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
-            if last and time.time()-last < 5: return #Prevent spamming
+            if last and time.time()-int(last) < 5: return #Prevent spamming
             msg = 'No such command "%s"!' % obj._name
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))

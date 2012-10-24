@@ -3,6 +3,11 @@ import json, time
 
 P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
 
+@P.cmd('help')
+def cmdHelp(obj):
+    obj.pmu('To avoid spamming, we wont list commands. For commands goto http://fixthislater.com.')
+    obj.pmu('If you need to report a problem with the bot, or want help from a real person, please use !report.')
+
 @P.cmd('reload')
 def cmdReload(obj):
     obj.reply('Reloading plugins...')
@@ -87,16 +92,16 @@ def cmdAddspam(obj):
     A.red.hset('i.p.core.spam.%s' % num, 'time', int(obj.sess['time'])*60)
     A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
     A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(int(obj.sess['duration'])*60))
-    A.red.hset('i.p.core.spam.%s' % num, 'active', True)
+    A.red.hset('i.p.core.spam.%s' % num, 'active', 1)
     obj.reply('Spam #%s was added!' % num)
 
-@P.cmd('editspam', admin=True, kwargs=True,
+@P.cmd('editspam', admin=True, kwargs=True, kbool=['delete', 'active'],
     usage='{cmd} id msg=Edited message duration=New duration time=New time active={bool} delete={bool}',
     desc="Edit a spam message, you *cannot* edit the channels of a spam!")
 def cmdEditspam(obj):
     if not obj.kwargs: return obj.usage()
     if not obj.m[1].isdigit(): return obj.reply('That is an invalid ID #!')
-    if not int(obj.m[1]) <= int(red.get('i.p.core.spamid')): return obj.reply('No spam with that ID #!')
+    if 'i.p.core.spam.%s' % int(obj.m[1]) not in A.red.keys('i.p.core.spam.*'): return obj.reply('No spam with that ID #!')
     s = 'i.p.core.spam.%s' % int(obj.m[1])
     obj.sess['data'] = json.loads(A.red.hget(s, 'data'))
     if 'msg' in obj.kwargs: obj.sess['data']['msg'] = obj.kwargs.get('msg')
@@ -105,21 +110,29 @@ def cmdEditspam(obj):
         A.red.hset(s, 'time', int(obj.kwargs.get('time'))*60)
     elif 'duration' in obj.kwargs:
         if not obj.kwargs.get('time').isdigit(): return obj.reply('Duration kwarg must be integer (number)!')
-        A.red.hset(s, 'end', time.time()+(int(obj.kwargs.get('duration')*60)))
+        if obj.kwargs.get('duration')[0] in ['-', '0']: A.red.hset(s, 'end', 0)
+        else: A.red.hset(s, 'end', time.time()+(int(obj.kwargs.get('duration')*60)))
     elif 'active' in obj.kwargs:
-        A.red.hset(s, obj.kwargs.get('active'))
+        A.red.hset(s, int(obj.kwargs.get('active')))
     elif 'delete' in obj.kwargs:
         A.red.delete(s)
-        return obj.reply('Deleted spaam #%s!' % obj.m[1])
-    red.A.hset(k, 'data', json.dumps(obj.sess['data']))
+        return obj.reply('Deleted spam #%s!' % obj.m[1])
+    A.red.hset(s, 'data', json.dumps(obj.sess['data']))
     obj.reply('Edited spam #%s!' % obj.m[1])    
+
+@P.cmd('viewspams', admin=True, usage='{cmd}', desc="Lists all spams and their details.")
+def cmdViewspam(obj):
+    for key in A.red.keys('i.p.core.spam.*'):
+        msg = json.loads(A.red.hget(key, 'data'))['msg']
+        active = A.red.hget(key, 'active')
+        obj.reply('#%s - "%s" - Active: %s' % (key.split('.')[-1], msg, bool(active)))
 
 @P.loop(55)
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
-        if A.red.hget(k, 'active'):
+        if int(A.red.hget(k, 'active')):
             if time.time() > float(A.red.hget(k, 'end')):
-                A.red.hset(k, 'active', False)
+                A.red.hset(k, 'active', 0)
                 continue
             if time.time()-float(A.red.hget(k, 'last')) > A.red.hget(k, 'time'): 
                 continue

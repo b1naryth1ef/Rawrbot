@@ -10,9 +10,18 @@ print 'Auto update ftw!'
 default_cfg = {
     'networks':[
         {
-            'host':'irc.esper.net',
-            'chans':['b0tt3st', 'testy1', 'testy2', 'testy3', 'b1naryth1ef'],
+            'host':'irc.quakenet.org',
+            'chans':['b1naryth1ef', 'rawrbot', ['rawrbot.admins', 'l33t']],
             'auth':'',
+            'lock_workers':0,
+            'plugins':[]
+        },
+        {
+            'host':'irc.undernet.org',
+            'chans':['corner'],
+            'auth':'',
+            'lock_workers':1,
+            'plugins':['core']
         }
     ],
     'plugins':['util']
@@ -52,7 +61,7 @@ class Worker(object):
     def join(self, chan, send=True):
         self.chans.append(chan)
         self.net.channels[chan] = self
-        if send: self.push('JOIN', chan=chan)
+        if send: self.push('JOIN', chan=chan, pw=self.net.pws.get(chan, ''))
 
     def part(self, chan, msg, send=True):
         self.chans.remove(chan)
@@ -92,15 +101,27 @@ class Worker(object):
             print msg
 
 class Network(object):
-    def __init__(self, id, name, master, channels=[], auth=""):
+    def __init__(self, id, name, master, plugins=[], channels=[], auth=""):
         self.id = id
         self.name = name
         self.master = master
-        self.channels = dict([(i.replace('#', ''), None) for i in channels])
+        self.channels = {}
+        self.pws = {}
         self.auth = auth
         self.nickkey = "RawrBot"
         self.workers = {}
+        self.max_workers = 0
+        self.plugins = plugins
 
+        for i in channels:
+            if isinstance(i, list): 
+                self.pws[i[0].replace('#', '')] = i[1]
+                i = i[0]
+            self.channels[i.replace('#', '')] = None
+
+    def getNumWorkers(self):
+        return len([i for i in self.workers.values() if i != None])
+                
     def boot(self):
         red.delete('i.%s.chans' % self.id)
         red.delete('i.%s.workers' % self.id)
@@ -201,11 +222,14 @@ class Master(object):
         self.active = True
 
         self.isMaster = False
-        self.parser = Parser(red, api.A)
+        self.parser = Parser(self, red, api.A)
 
         self.networks = {}
         for num, i in enumerate(cfg.networks):
-            self.networks[num] = Network(num, i['host'], self, channels=i['chans'], auth=i['auth'])
+
+            self.networks[num] = Network(num, i['host'], self, plugins=i['plugins'], channels=i['chans'], auth=i['auth'])
+            if i['lock_workers'] != 0:
+                self.networks[num].max_workers = i['lock_workers']
             self.networks[num].boot()
 
         if red.llen('i.masters'):
@@ -322,8 +346,9 @@ class Master(object):
         print 'Adding worker!'
         m = None
         for i in self.networks.values():
+            if i.max_workers != 0 and i.getNumWorkers() >= i.max_workers: continue
             if m == None: m = i
-            elif m.getNumWorkers() > i.getNumWorkers(): m = i
+            if m.getNumWorkers() > i.getNumWorkers(): m = i
         if m != None:
             while len([i for i in m.workers.values() if i != None and i.ready == False]):
                 time.sleep(1)
