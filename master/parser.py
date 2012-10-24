@@ -16,6 +16,8 @@ class Parser(object):
     def write(self, chan): pass
 
     def parse(self, q):
+        if 'chan' in q:
+            q['chan'] = q['chan'].replace('#', '').lower()
         if q['tag'] == "MSG":
             if q['msg'].startswith(self.A.prefix) and q['msg'][1] != ' ': 
                 if self.A.parseCommand(q): return
@@ -24,20 +26,23 @@ class Parser(object):
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
                 for i in q['nicks']:
-                    if nickkey in i: continue #@NOTE We dont count ourselves
+                    if nickkey in i: 
+                        if i.startswith('@'):
+                            id = int(i.split(nickkey))
+                            self.red.sadd('i.%s.worker.%s.ops')
+                        continue #@NOTE We dont count ourselves
                     if i[0] in ['@', '+']: i = i[1:]
-                    self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), i.lower())
+                    self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'], i.lower())
         elif q['tag'] == 'TOPIC': pass
         elif q['tag'] == 'JOIN':
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey in q['nick']: return
-            self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
-            self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'].replace('#', ''), nid=q['nid'], wid=q['wid'])
+            self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+            self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'PART':
-            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
-            self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'].replace('#', ''), msg=q['msg'], nid=q['nid'], wid=q['wid'])
+            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+            self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'KICK':
-            q['chan'] = q['chan'].replace('#', '')
             q['kicked'] = q['kicked'].lower()
             q['nick'] = q['nick'].lower()
             if q['us']:
@@ -45,7 +50,8 @@ class Parser(object):
                 self.red.rpush('i.%s.worker.%s' % (q['nid'], q['id']), json.dumps(m))
                 return self.A.fireEvent('KICK_W', **q)
             self.A.fireEvent('KICK', **q)
-            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan'].replace('#', '')), q['nick'].lower())
+            self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+        elif q['tag'] == 'MODE': pass
 
     def parseLoop(self):
         while True:
