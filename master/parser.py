@@ -7,6 +7,10 @@ class Parser(object):
         self.A = a
         self.A.loadPlugins()
 
+    def takeMaster(self):
+        self.A.canLoop = True
+        self.A.loadLoops()
+
     def write(self, chan): pass
 
     def parse(self, q):

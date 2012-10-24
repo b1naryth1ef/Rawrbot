@@ -1,6 +1,28 @@
 import re, thread, json
 import sys, os, time
 import random, __builtin__
+from threading import Thread
+
+class LooopingThread():
+    def __init__(self, func=None, delay=30):
+        self.active = False
+        self.func = func
+        self.delay = delay
+        self.id = 0
+
+    def start(self):
+        if self.active: return
+        self.active = True
+        self.id = thread.start_new_thread(self.run, ())
+
+    def stop(self):
+        if not self.active: return
+        self.active = False
+
+    def run(self):
+        while self.active:
+            self.func()
+            time.sleep(self.delay)
 
 class FiredEvent():
     def __init__(self, api, name, data={}):
@@ -42,13 +64,13 @@ class Plugin():
         self.api.plugins[self.realname] = self
 
     def loaded(self):
-        print self.api.mods[self.realname]
         self.mod = self.api.mods[self.realname]
 
-    def loop(self):
+    def loop(self, delay=30):
         def deco(func):
-            self.api.loops.append(func)
-            return func
+            func.loop = LooopingThread(func=func, delay=delay)
+            self.api.loops.append(func.loop)
+            return func.loop            
         return deco
 
     def cmd(self, name, **kwargs): #@TYPE Decorator
@@ -91,13 +113,17 @@ class API(object):
         self.hooks = {}
         self.loops = []
 
-        thread.start_new_thread(self.loop, ())
+        self.canLoop = False
 
-    def loop(self):
-        while True:
-            for i in self.loops:
-                i()
-            time.sleep(10)
+    def loadLoops(self):
+        print 'Starting loops!'
+        for i in self.loops:
+            i.start()
+
+    def unloadLoops(self):
+        print 'Stoping loops!'
+        for i in self.loops:
+            i.stop()
 
     def validChan(self, net, chan):
         return self.red.sismember('i.%s.chans' % net, chan)
@@ -224,9 +250,11 @@ class API(object):
             self.plugins[f].loaded()
 
     def reloadPlugins(self, call=None, *args, **kwargs):
+        if self.canLoop: self.unloadLoops()
         for plugin in self.plugins.values():
             plugin.reload()
         if call:
             call(*args, **kwargs)
+        if self.canLoop: self.loadLoops()
 
 A = None

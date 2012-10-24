@@ -56,69 +56,76 @@ def cmdStatus(obj):
     obj.reply('--------------------')
 
 @P.cmd('addspam', admin=True, kwargs=True,
-    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=+#chanb -#mychan (defaults to all)',
+    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=+#chanb #mychan (defaults to all)',
     desc="Add a message to be spammed regularly")
 def cmdAddspam(obj):
     if not obj.kwargs: return obj.usage()
-    if not 'msg' in obj.kwargs: return obj.usage()
-    if not 'time' in obj.kwargs: return obj.usage()
-    if not 'duration' in obj.kwargs: return obj.usage()
-    obj.sess['msg'] = obj.kwargs.get('msg')
+    if 'msg' not in obj.kwargs or 'time' not in obj.kwargs or 'duration' not in obj.kwargs: return obj.usage()
     obj.sess['time'] = obj.kwargs.get('time')
     obj.sess['duration'] = obj.kwargs.get('duration')
-    obj.sess['channels'] = obj.kwargs.get('chans', [])
+    obj.sess['channels'] = obj.kwargs.get('chans', '')
     obj.sess['chans'] = list(A.red.smembers('i.%s.chans' % obj.nid))
-    for i in obj.sess['channels']:
-        if i.startswith('+'):
-            i = i[1:].replace('#', '')
-            if i not in obj.sess['chans']:
-                obj.sess['chans'].append(i)
-        elif i.startswith('-'):
-            i = i[1:].replace('#', '')
+    if obj.sess['channels'].startswith('-'):
+        for i in obj.sess['channels'][1:].split(' '):
+            print obj.sess['chans']
+            i = i.replace('#', '')
             if i in obj.sess['chans']:
-                obj.sess.remove(i)
-        else:
-            return obj.reply('Invalid chans format!')
+                obj.sess['chans'].remove(i)
+    elif obj.sess['channels'].startswith('+'):
+        obj.sess['chans'] = []
+        for i in obj.sess['channels'][1:].split(' '):
+            i = i.replace('#', '')
+            obj.sess['chans'].append(i)
+    elif obj.sess['channels'] == '': pass
+    else: obj.reply('Incorrect format for kwarg "chans"')
     if not obj.sess['duration'].isdigit() and obj.sess['time'].isdigit():
         return obj.reply('Time and Duration kwargs must be integers (numbers)')
-    else:
-        obj.sess['duration'] = int(obj.sess['duration'])
-        obj.sess['time'] = int(obj.sess['duration'])
 
-    num = A.red.incr('i.p.core.spamid')
-    #@TODO Fix this shit
-    A.red.hset('i.p.core.spam.%s' % num, 'msg', obj.sess['msg'])
-    A.red.hset('i.p.core.spam.%s' % num, 'net', obj.nid)
-    A.red.hset('i.p.core.spam.%s' % num, 'time', obj.sess['time'])
-    A.red.hset('i.p.core.spam.%s' % num, 'chans', json.dumps(obj.sess['chans']))
-    A.red.hset('i.p.core.spam.%s' % num, 'active', True)
+    num = len(A.red.keys('i.p.core.spam.*'))+1
+    m = {'msg':obj.kwargs.get('msg'), 'chans':obj.sess['chans'], 'nid':obj.nid}
+    A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
+    A.red.hset('i.p.core.spam.%s' % num, 'time', int(obj.sess['time'])*60)
     A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
-    A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(obj.sess['duration']*60))
-    A.red.sadd('i.p.core.spams', num)
-
+    A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(int(obj.sess['duration'])*60))
+    A.red.hset('i.p.core.spam.%s' % num, 'active', True)
     obj.reply('Spam #%s was added!' % num)
 
-_li = 0
-@P.loop()
+@P.cmd('editspam', admin=True, kwargs=True,
+    usage='{cmd} id msg=Edited message duration=New duration time=New time active={bool} delete={bool}',
+    desc="Edit a spam message, you *cannot* edit the channels of a spam!")
+def cmdEditspam(obj):
+    if not obj.kwargs: return obj.usage()
+    if not obj.m[1].isdigit(): return obj.reply('That is an invalid ID #!')
+    if not int(obj.m[1]) <= int(red.get('i.p.core.spamid')): return obj.reply('No spam with that ID #!')
+    s = 'i.p.core.spam.%s' % int(obj.m[1])
+    obj.sess['data'] = json.loads(A.red.hget(s, 'data'))
+    if 'msg' in obj.kwargs: obj.sess['data']['msg'] = obj.kwargs.get('msg')
+    elif 'time' in obj.kwargs:
+        if not obj.kwargs.get('time').isdigit(): return obj.reply('Time kwarg must be integer (number)!')
+        A.red.hset(s, 'time', int(obj.kwargs.get('time'))*60)
+    elif 'duration' in obj.kwargs:
+        if not obj.kwargs.get('time').isdigit(): return obj.reply('Duration kwarg must be integer (number)!')
+        A.red.hset(s, 'end', time.time()+(int(obj.kwargs.get('duration')*60)))
+    elif 'active' in obj.kwargs:
+        A.red.hset(s, obj.kwargs.get('active'))
+    elif 'delete' in obj.kwargs:
+        A.red.delete(s)
+        return obj.reply('Deleted spaam #%s!' % obj.m[1])
+    red.A.hset(k, 'data', json.dumps(obj.sess['data']))
+    obj.reply('Edited spam #%s!' % obj.m[1])    
+
+@P.loop(55)
 def loopCall():
-    print 'Loop!'
-    if _li <= 6: 
-        _li += 1
-        return
-    else:
-        _li = 0
-        for i in A.red.smembers('i.p.core.spams'):
-            k = 'i.p.core.spam.%s' % i
-            if A.red.hget(k, 'active'):
-                if time.time() > A.red.hget(k, 'end'):
-                    A.red.hset(k, 'active', False)
-                    continue
-                if time.time()-A.red.hget(k, 'last') < A.red.hget(k, 'time'): continue
-                A.red.hset(k, 'last', time.time())
-                nid = A.red.hget(k, 'net')
-                msg = A.red.hget(k, 'msg')
-                for chan in json.loads(A.red.hget(k, 'chans')):
-                    if A.red.sismember('i.%s.chans' % nid, chan):
-                        A.write(nid, chan, msg)
-                    else:
-                        print 'Not in channel %s' % chan #@TODO Fix this
+    for k in A.red.keys('i.p.core.spam.*'):
+        if A.red.hget(k, 'active'):
+            if time.time() > float(A.red.hget(k, 'end')):
+                A.red.hset(k, 'active', False)
+                continue
+            if time.time()-float(A.red.hget(k, 'last')) > A.red.hget(k, 'time'): 
+                continue
+            A.red.hset(k, 'last', time.time())
+            data = json.loads(A.red.hget(k, 'data'))
+            for chan in data['chans']:
+                if A.red.sismember('i.%s.chans' % data['nid'], chan):
+                    A.write(data['nid'], chan, data['msg'])
+                else: print 'Not in channel %s' % chan #@TODO Fix this

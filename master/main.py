@@ -176,7 +176,9 @@ class Network(object):
 
     def rmvWorker(self, wid): #@TODO Reallocate channels?
         red.srem('i.%s.workers' % self.id, wid)
+        del self.workers[wid]
         self.workers[wid] = None
+
 
     def ping(self):
         for i in self.workers.values():
@@ -212,6 +214,7 @@ class Master(object):
         else:
             self.isMaster = True
             self.num = 1
+            self.parser.takeMaster()
             red.delete('i.parseq')
             for net in self.networks.values():
                 for chan in net.channels:
@@ -272,11 +275,11 @@ class Master(object):
                 if i['tag'] == 'PING':
                     red.rpush('i.temp.%s' % i['chan'], 'PONG')
                 elif i['tag'] == 'DC':
-                    print i, self.num
                     if self.num > i['index']:
                         self.num -= 1
                         if self.num == 1:
                             self.isMaster = True
+                            self.parser.takeMaster()
                             thread.start_new_thread(self.masterLoop, ())
                             self.recover()
                         elif self.num < 1:
@@ -285,8 +288,10 @@ class Master(object):
                             sys.exit()
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg']
+                    if self.isMaster and not red.llen('i.masters') > 1:
+                        print 'Not updating because there are no backup masters!'
+                        continue
                     self.active = False
-                    if self.isMaster: red.publish('irc.master', '')
                     self.quit()
                     self.q.put('update')
                 else:
