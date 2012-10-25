@@ -296,7 +296,7 @@ class Master(object):
         s.subscribe('irc.m')
         while self.active:
             for i in s.listen():
-                try: i = json.loads(i['data'].replace("'", '"'))
+                try: i = json.loads(i['data'])
                 except:
                     print '>>>', i
                     continue
