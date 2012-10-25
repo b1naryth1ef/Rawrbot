@@ -29,7 +29,7 @@ class Parser(object):
                     if nickkey in i: 
                         if i.startswith('@'):
                             id = int(i.split(nickkey)[-1])
-                            self.red.sadd('i.%s.worker.%s.ops')
+                            self.red.sadd('i.%s.worker.%s.ops', q['chan'])
                         continue #@NOTE We dont count ourselves
                     if i[0] in ['@', '+']: i = i[1:]
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'], i.lower()))
