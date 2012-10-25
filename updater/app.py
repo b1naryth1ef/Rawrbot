@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-import redis, json
+import redis, json, os
 
 red = redis.Redis(host='hydr0.com')
 app = Flask(__name__)
