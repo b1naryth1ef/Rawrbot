@@ -7,6 +7,10 @@ s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroys']
 s_bodyparts = ['tentacle', 'arm', 'face', 'head', 'dick', 'foot', 'finger']
 s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag']
 
+@P.cmd('test')
+def cmdTest(obj):
+    obj.reply('It works!')
+
 @P.cmd('slap', admin=True, usage="{cmd} user")
 def cmdSlap(obj):
     act = random.choice(s_actions)
