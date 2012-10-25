@@ -147,8 +147,7 @@ def loopCall():
             if time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
-            print time.time()-float(A.red.hget(k, 'last')), float(A.red.hget(k, 'time'))
-            if time.time()-float(A.red.hget(k, 'last')) > float(A.red.hget(k, 'time')): 
+            if (time.time()-float(A.red.hget(k, 'last'))) > float(A.red.hget(k, 'time')): 
                 continue
             A.red.hset(k, 'last', time.time())
             data = json.loads(A.red.hget(k, 'data'))
