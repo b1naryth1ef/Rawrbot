@@ -126,7 +126,7 @@ def cmdEditspam(obj):
         if obj.kwargs.get('duration')[0] in ['-', '0']: A.red.hset(s, 'end', 0)
         else: A.red.hset(s, 'end', time.time()+(int(obj.kwargs.get('duration')*60)))
     elif 'active' in obj.kwargs:
-        A.red.hset(s, int(obj.kwargs.get('active')))
+        A.red.hset(s, 'active', int(obj.kwargs.get('active')))
     elif 'delete' in obj.kwargs:
         A.red.delete(s)
         return obj.reply('Deleted spam #%s!' % obj.m[1])
@@ -147,7 +147,7 @@ def loopCall():
             if time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
-            if time.time()-float(A.red.hget(k, 'last')) > A.red.hget(k, 'time'): 
+            if time.time()-float(A.red.hget(k, 'last')) > float(A.red.hget(k, 'time')): 
                 continue
             A.red.hset(k, 'last', time.time())
             data = json.loads(A.red.hget(k, 'data'))

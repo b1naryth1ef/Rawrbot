@@ -205,7 +205,6 @@ class Network(object):
         del self.workers[wid]
         self.workers[wid] = None
 
-
     def ping(self):
         for i in self.workers.values():
             if i == None: continue
