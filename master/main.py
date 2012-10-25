@@ -196,6 +196,7 @@ class Network(object):
                 if pos+1 > len(c): break
                 for i in c[pos]:
                     if i in w.chans: continue
+                    if self.channels[i] == None: continue
                     self.channels[i].part(i, 'Bot Swapping...')
                     w.join(i)
 
