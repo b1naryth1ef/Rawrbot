@@ -9,7 +9,7 @@ s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'p
 
 @P.cmd('test')
 def cmdTest(obj):
-    obj.reply('It works? YAY?')
+    obj.reply('It works? :3')
 
 @P.cmd('slap', admin=True, usage="{cmd} user")
 def cmdSlap(obj):
