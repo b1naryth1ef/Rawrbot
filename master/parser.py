@@ -32,7 +32,7 @@ class Parser(object):
                             self.red.sadd('i.%s.worker.%s.ops', q['chan'])
                         continue #@NOTE We dont count ourselves
                     if i[0] in ['@', '+']: i = i[1:]
-                    self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan'], i.lower()))
+                    self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
         elif q['tag'] == 'TOPIC': pass
         elif q['tag'] == 'JOIN':
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])

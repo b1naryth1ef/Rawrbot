@@ -13,6 +13,9 @@ def hook_view():
         else: plural = ''
         m = '%s (%s commit%s pushed by %s)' % (i['message'], len(request.json['commits']), plural, i['author']['name'])
         red.publish('irc.m', json.dumps({'tag':'UPD', 'msg':m}))
+        os.popen('screen -S master -X kill')
+        os.popen('git pull origin deploy')
+        os.popen('screen -S master exec "cd ../master/; python start.py"')
     return ':)'
 
 if __name__ == '__main__':

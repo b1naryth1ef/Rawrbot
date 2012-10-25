@@ -7,11 +7,4 @@ def loop():
     m = main.Master()
     p = Process(target=m.boot, args=(q,))
     p.start()
-
-    while True: 
-        if q.get(True, None) == 'update': 
-            p.terminate()
-            os.popen('git pull origin master')
-            reload(main)
-            return loop()
 loop()

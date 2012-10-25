@@ -315,13 +315,9 @@ class Master(object):
                             print 'Error, we have a <1 ID'
                             sys.exit()
                 elif i['tag'] == 'UPD':
-                    print 'Recieved update: "%s"' % i['msg']
-                    if self.isMaster and not red.llen('i.masters') > 1:
-                        print 'Not updating because there are no backup masters!'
-                        continue
+                    print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     self.active = False
                     self.quit()
-                    self.q.put('update')
                 else:
                     print i
         s.unsubscribe('irc.m.%s' % self.uid)
