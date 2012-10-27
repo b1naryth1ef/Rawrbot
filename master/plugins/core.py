@@ -7,7 +7,16 @@ s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroys']
 s_bodyparts = ['tentacle', 'arm', 'face', 'head', 'dick', 'foot', 'finger']
 s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag']
 
-@P.cmd('slap', admin=True, usage="{cmd} user")
+@P.cmd('join', admin=True, usage="{cmd} <chan>")
+def cmdJoin(obj): pass
+
+@P.cmd('part', admin=True, usage="{cmd} <chan> [msg]")
+def cmdPart(obj): pass
+
+@P.cmd('quit', admin=True, kwargs=True, kbool=['confirm'], usage="{cmd} msg=My Message confirm={bool}")
+def cmdQuit(obj): pass
+
+@P.cmd('slap', admin=True, usage="{cmd} <user>")
 def cmdSlap(obj):
     act = random.choice(s_actions)
     bp = random.choice(s_bodyparts)
@@ -148,10 +157,11 @@ def loopCall():
             if time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
-            print A.red.hget(k, 'last'), A.red.hget(k, 'time')
+            print float(A.red.hget(k, 'last')), float(A.red.hget(k, 'time'))
+            print time.time()-float(A.red.hget(k, 'last')), float(A.red.hget(k, 'time'))
             if (time.time()-float(A.red.hget(k, 'last'))) > float(A.red.hget(k, 'time')): 
                 continue
-            A.red.hset(k, 'last', time.time())
+            A.red.hset(k, 'last',   time.time())
             data = json.loads(A.red.hget(k, 'data'))
             for chan in data['chans']:
                 if A.red.sismember('i.%s.chans' % data['nid'], chan):
