@@ -120,6 +120,7 @@ def cmdEditspam(obj):
     if 'msg' in obj.kwargs: obj.sess['data']['msg'] = obj.kwargs.get('msg')
     elif 'time' in obj.kwargs:
         if not obj.kwargs.get('time').isdigit(): return obj.reply('Time kwarg must be integer (number)!')
+        print 'Time == %s' % str(int(obj.kwargs.get('time'))*60)
         A.red.hset(s, 'time', int(obj.kwargs.get('time'))*60)
     elif 'duration' in obj.kwargs:
         if not obj.kwargs.get('time').isdigit(): return obj.reply('Duration kwarg must be integer (number)!')
@@ -147,6 +148,7 @@ def loopCall():
             if time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
+            print A.red.hget(k, 'last'), A.red.hget(k, 'time')
             if (time.time()-float(A.red.hget(k, 'last'))) > float(A.red.hget(k, 'time')): 
                 continue
             A.red.hset(k, 'last', time.time())
