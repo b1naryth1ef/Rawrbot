@@ -26,12 +26,15 @@ class Parser(object):
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
                 for i in q['nicks']:
-                    if nickkey in i: 
+                    if nickkey in i: #@TODO Cleanup
                         if i.startswith('@'):
                             id = int(i.split(nickkey)[-1])
-                            self.red.sadd('i.%s.worker.%s.ops', q['chan'])
+                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), True)
                         continue #@NOTE We dont count ourselves
-                    if i[0] in ['@', '+']: i = i[1:]
+                    if i[0] == '@':
+                        i = i[1:].lower()
+                        self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], q['chan']), i)
+                    elif i[0] == '+': i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
         elif q['tag'] == 'TOPIC': pass
         elif q['tag'] == 'JOIN':
@@ -51,8 +54,22 @@ class Parser(object):
                 return self.A.fireEvent('KICK_W', **q)
             self.A.fireEvent('KICK', **q)
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
-        elif q['tag'] == 'MODE': pass
-
+        elif q['tag'] == 'MODEC':
+            if q['mode'][0] in ['+', '-']:
+                self.A.fireEvent('CHANNEL_MODE', modetype=q['mode'][0], **q)
+        elif q['tag'] == 'MODEU':
+            nickkey = self.red.get('i.%s.nickkey' % q['nid'])
+            if q['mode'][0] in ['+', '-']:
+                if 'o' in q['mode']:
+                    if nickkey and nickkey in q['target']:
+                        if q['mode'][0] == '+':
+                            id = int(q['target'].split(nickkey)[-1])
+                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), True)
+                        else:
+                            id = int(q['target'].split(nickkey)[-1])
+                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), False)
+                    if q['mode'][0] == '-': self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['target'].lower())
+                    else: self.red.sadd('i.%s.chan.%s.ops'% (q['nid'], q['chan']), q['target'].lower())
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')

@@ -263,12 +263,12 @@ class Master(object):
         finally:
             self.quit()
 
-    def quit(self):
+    def quit(self, msg='Bot is going down!'):
         red.publish('irc.m', {'tag':'DC', 'index':1, 'id':self.uid})
         red.lrem('i.masters', self.uid, 0)
         if red.llen('i.masters') == 0:
             for i in self.networks.values():
-                i.quit('Bot is going down (no master to recover!)')
+                i.quit(msg)
 
     def recover(self):
         for nid in self.networks.keys():
@@ -335,10 +335,13 @@ class Master(object):
                     continue
                 if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
                 elif msg['tag'] == 'ID': self.networks[msg['nid']].recover(msg)
+                elif msg['tag'] == 'JOIN': self.networks[msg['nid']].joinChannel(msg['chan'])
+                elif msg['tag'] == 'QUIT': self.quit(msg=msg['msg'])
                 elif 'nid' in msg and 'id' in msg:
                     if msg['id'] not in self.networks[msg['nid']].workers.keys(): continue
                     if self.networks[msg['nid']].workers[msg['id']] != None:
                         self.networks[msg['nid']].workers[msg['id']].parse(msg)
+
         self.sub.unsubscribe('irc.master')
         print 'Master loop is done!'
 

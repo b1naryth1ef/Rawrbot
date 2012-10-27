@@ -105,7 +105,12 @@ class Worker(object):
                 else: us = False
                 msg = m[4][1:]
                 self.p('KICK', chan=chan, msg=msg, kicked=kicked, nick=nick, host=host, us=us)
-
+            elif m[1] == 'MODE':
+                m = msg.split(' ', 4)
+                if len(m) == 4: 
+                    self.p('MODEC', chan=m[2], mode=m[3], nick=nick, host=host)
+                elif len(m) == 5:
+                    self.p('MODEU', target=m[4], chan=m[2], mode=m[3], nick=nick, host=host)
 
     def p(self, tag, **kwargs): #Any master can parse a message pushed here
         kwargs['tag'] = tag
@@ -142,6 +147,8 @@ class Worker(object):
             elif q['tag'] == "PING": 
                 self.pinged = True
                 self.push('PONG')
+            elif q['tag'] == 'RAW':
+                self.write(q['msg'])
             elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':

@@ -3,18 +3,46 @@ import json, time, random
 
 P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
 
-s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroys']
-s_bodyparts = ['tentacle', 'arm', 'face', 'head', 'dick', 'foot', 'finger']
-s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag']
+s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 'refactor', 'git reset --hard']
+s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
+s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://', 'ace']
+
+@P.cmd('secret')
+def cmdSecret(obj):
+    obj.reply('Congrats! You found the secret!')
+    #@TODO Kick the user :D
 
 @P.cmd('join', admin=True, usage="{cmd} <chan>")
-def cmdJoin(obj): pass
+def cmdJoin(obj):
+    if len(obj.m) < 2: return obj.usage()
+    else:
+        chan = obj.m[1].replace('#', '').lower()
+        if not A.red.sismember('i.%s.chans'% obj.nid, chan):
+            A.red.publish('irc.master', json.dumps({'tag':'JOIN', 'chan':chan, 'nid':obj.nid}))
+            return obj.reply('Bot has joined channel "#%s"' % chan)
+        obj.reply('The bot is already in channel "#%s"!' % chan)
 
 @P.cmd('part', admin=True, usage="{cmd} <chan> [msg]")
-def cmdPart(obj): pass
+def cmdPart(obj):
+    if len(obj.m) < 2: return obj.usage()
+    else:
+        if len(obj.m) > 2: msg = ' '.join(obj.m[2:])
+        else: msg = "Bot is leaving..."
+        chan = obj.m[1].replace('#', '').lower()
+        if A.red.sismember('i.%s.chans' % obj.nid, chan):
+            i = {'tag':'PART', 'chan':chan, 'msg':msg}
+            A.red.rpush('i.%s.chan.%s' % (obj.nid, chan), json.dumps(i))
+            return obj.reply('Bot has quit channel "#%s"' % chan)
+        obj.reply('Bot is not in channel "#%s' % chan)
 
 @P.cmd('quit', admin=True, kwargs=True, kbool=['confirm'], usage="{cmd} msg=My Message confirm={bool}")
-def cmdQuit(obj): pass
+def cmdQuit(obj):
+    if not obj.kwargs: return obj.usage()
+    if not obj.kwargs.get('confirm'):
+        return obj.reply('You must have kwarg confirm true to complete quitting!')
+    if not obj.kwargs.get('msg'):
+        return obj.reply('You must provide a message to quit!')
+    A.red.publish('irc.master', json.dumps({'tag':'QUIT', 'msg':obj.kwargs.get('msg')}))
 
 @P.cmd('slap', admin=True, usage="{cmd} <user>")
 def cmdSlap(obj):
@@ -83,7 +111,7 @@ def cmdStatus(obj):
     obj.reply('--------------------')
 
 @P.cmd('addspam', admin=True, kwargs=True,
-    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=+#chanb #mychan (defaults to all)',
+    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all)',
     desc="Add a message to be spammed regularly")
 def cmdAddspam(obj):
     if not obj.kwargs: return obj.usage()
@@ -92,22 +120,11 @@ def cmdAddspam(obj):
     obj.sess['duration'] = obj.kwargs.get('duration')
     obj.sess['channels'] = obj.kwargs.get('chans', '')
     obj.sess['chans'] = list(A.red.smembers('i.%s.chans' % obj.nid))
-    if obj.sess['channels'].startswith('-'):
-        for i in obj.sess['channels'][1:].split(' '):
-            print obj.sess['chans']
-            i = i.replace('#', '')
-            if i in obj.sess['chans']:
-                obj.sess['chans'].remove(i)
-    elif obj.sess['channels'].startswith('+'):
-        obj.sess['chans'] = []
-        for i in obj.sess['channels'][1:].split(' '):
-            i = i.replace('#', '')
-            obj.sess['chans'].append(i)
-    elif obj.sess['channels'] == '': pass
-    else: obj.reply('Incorrect format for kwarg "chans"')
+    if obj.sess['channels']:
+        obj.sess['chans'] = [i.strip() for i in obj.kwargs.get(obj.sess['channels'], obj.dest).split(',')]
+    else: return obj.reply('Incorrect format for kwarg "chans"')
     if not obj.sess['duration'].isdigit() and obj.sess['time'].isdigit():
         return obj.reply('Time and Duration kwargs must be integers (numbers)')
-
     num = len(A.red.keys('i.p.core.spam.*'))+1
     m = {'msg':obj.kwargs.get('msg'), 'chans':obj.sess['chans'], 'nid':obj.nid}
     A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
@@ -150,7 +167,7 @@ def cmdViewspam(obj):
         active = A.red.hget(key, 'active')
         obj.reply('#%s - "%s" - Active: %s' % (key.split('.')[-1], msg, bool(active)))
 
-@P.loop(55)
+@P.loop(58) #This gets out of sync slowley, do we care that much? Prolly not.
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
         if int(A.red.hget(k, 'active')):
