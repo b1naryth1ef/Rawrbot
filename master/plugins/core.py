@@ -75,7 +75,7 @@ def cmdMsg(obj):
     obj.sess['force'] = obj.kwargs.get('force', False)
     if obj.sess['nick']: obj.sess['msg'] = "%s: %s" % (obj.nick, obj.sess['msg'])
     else: obj.msg = obj.sess['msg']
-    if obj.sess['chan'] == ['*']: pass
+    if obj.sess['chan'] == ['*']: pass #@TODO do this
     elif obj.sess['chan']:
         fails = []
         for i in obj.sess['chan']:
