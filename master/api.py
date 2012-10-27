@@ -45,7 +45,7 @@ class FiredCommand(FiredEvent):
 
     def usage(self):
         i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
-        self.reply(self._prefix+i)
+        self.reply('Usage: '+self._prefix+i)
 
     def privmsg(self, user, msg):
         k = {'tag':'PM', 'msg':msg, 'nick':user}
@@ -54,6 +54,10 @@ class FiredCommand(FiredEvent):
     def send(self, chan, msg): #@TODO Check if valid channel?
         k = {'tag':'MSG', 'chan':chan.replace('#', ''), 'msg':msg}
         self._api.red.rpush('i.%s.chan.%s' % (self.nid, k['chan']), json.dumps(k))
+
+    def raw(self, msg):
+        k = {'tag':'RAW', 'msg':msg}
+        self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
 class Plugin():
     def __init__(self, api, name="NullPlugin", version=0.1, author="Null"):
@@ -125,7 +129,7 @@ class API(object):
         self.apis = {}
         self.hooks = {}
         self.loops = []
-
+        self.maintence = False
         self.canLoop = False
 
     def loadLoops(self):
@@ -159,6 +163,9 @@ class API(object):
         host = host.split('@')[-1].strip()
         return self.red.sismember('i.%s.admins' % (net), host)
 
+    def isOp(self, net, chan, nick):
+        return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
+
     def parseCommand(self, data):
         m = data['msg'].split(' ')
         obj = FiredCommand(self, m[0][len(self.prefix):], data)
@@ -169,6 +176,7 @@ class API(object):
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
+            if self.maintence and not obj.admin: return #Dont even reply
             if len(self.master.networks[data['nid']].plugins):
                 if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins: 
                     msg = "That command is not enabled here!"
@@ -180,6 +188,8 @@ class API(object):
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                 return
+            if obj._cmd['op'] and not int(self.red.get('i.%s.worker.%s.%s.ops' % (data['nid'], data['wid'], data['dest']))):
+                return False
             if obj._cmd['kwargs']:
                 obj.kwargs = dict(re.findall(r'([^ \=]+)\=[ ]*(.+?)?(?:(?= [^ \\]+\=)|$)', ' '.join(m[1:])))
                 for i in obj._cmd['kbool']:
@@ -205,7 +215,7 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc=""):
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False):
        # print 'Adding %s' % name
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
@@ -217,6 +227,7 @@ class API(object):
             'usage':usage,
             'alias':alias,
             'desc':desc,
+            'op':op
         }
 
         for i in alias:

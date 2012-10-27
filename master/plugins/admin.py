@@ -29,8 +29,10 @@ def adminEditReport(): pass
 @P.hook('KICK_W')
 def hookKickWorker(obj):
     if A.red.exists('i.p.core.kickw.%s' % obj.kicked):
-        if int(A.red.get('i.p.core.kickw.%s' % obj.kicked)) > 10: #Got kicked 5 times
+        x = A.red.get('i.p.core.kickw.%s' % obj.kicked)
+        if int() >= 10: #Got kicked 5 times
             #@TODO Assign another worker or remove channel from list
+            A.red.set('i.p.core.kickw.%s' % obj.kicked, 0)
             return adminAddReport('Worker being continuely kicked from channl!', obj.kicked, obj.chan, obj.nid)
         else:
             A.red.incr('i.p.core.kickw.%s' % obj.kicked)

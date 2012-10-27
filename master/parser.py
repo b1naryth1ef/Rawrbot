@@ -22,18 +22,21 @@ class Parser(object):
             if q['msg'].startswith(self.A.prefix) and q['msg'][1] != ' ': 
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', **q)
-        elif q['tag'] == 'NAMES':
+        elif q['tag'] == 'NAMES': #@TODO Cleanup
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
                 for i in q['nicks']:
-                    if nickkey in i: #@TODO Cleanup
+                    print 'USER:', i
+                    if nickkey in i:
                         if i.startswith('@'):
-                            id = int(i.split(nickkey)[-1])
-                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), True)
+                            id = int(i[-1])
+                            self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 1)
+                            print "Bot is an op: %s/%s" % (i, q['chan'])
                         continue #@NOTE We dont count ourselves
                     if i[0] == '@':
                         i = i[1:].lower()
                         self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], q['chan']), i)
+                        print 'User is op: %s/%s' % (i, q['chan'])
                     elif i[0] == '+': i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
         elif q['tag'] == 'TOPIC': pass
@@ -44,6 +47,7 @@ class Parser(object):
             self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'PART':
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+            self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower()) #@NOTE We dont care if this works/doesnt
             self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], wid=q['wid'])
         elif q['tag'] == 'KICK':
             q['kicked'] = q['kicked'].lower()
@@ -54,22 +58,27 @@ class Parser(object):
                 return self.A.fireEvent('KICK_W', **q)
             self.A.fireEvent('KICK', **q)
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+            self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower())
         elif q['tag'] == 'MODEC':
             if q['mode'][0] in ['+', '-']:
                 self.A.fireEvent('CHANNEL_MODE', modetype=q['mode'][0], **q)
         elif q['tag'] == 'MODEU':
+            print q
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if q['mode'][0] in ['+', '-']:
                 if 'o' in q['mode']:
+                    print 'ye!', nickkey, q['target']
                     if nickkey and nickkey in q['target']:
+                        id = int(q['target'][-1])
+                        print id
                         if q['mode'][0] == '+':
-                            id = int(q['target'].split(nickkey)[-1])
-                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), True)
+                            self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 1)
                         else:
-                            id = int(q['target'].split(nickkey)[-1])
-                            self.red.set('i.%s.worker.%s.%s.ops' % (q['nid'], id, q['chan']), False)
+                            self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 0)
+                        return
                     if q['mode'][0] == '-': self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['target'].lower())
                     else: self.red.sadd('i.%s.chan.%s.ops'% (q['nid'], q['chan']), q['target'].lower())
+
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')

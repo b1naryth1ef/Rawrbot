@@ -6,11 +6,58 @@ P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
 s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 'refactor', 'git reset --hard']
 s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
 s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://', 'ace']
+s_opmsgs = ['Enjoy your +o', 'IMA PUT MY OP IN YOU', 'There you go', '<3', 'Now can we mode +b *!*@* plz?', 'Whose the best bot evar?']
 
-@P.cmd('secret')
+@P.cmd('channels', admin=True)
+def cmdChannels(obj):
+    obj.pmu('Channels List: (this may take a second)')
+    for chan in A.red.smembers('i.%s.chans' % obj.nid):
+        numu = A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
+        numop = A.red.scard('i.%s.chan.%s.ops' % (obj.nid, chan))
+        obj.pmu('[#%s] Users: %s | OPs: %s' % (chan, numu, numop))
+        time.sleep(1)
+
+@P.cmd('commands', admin=True)
+def cmdCommands(obj):
+    obj.pmu('Command List: (this may take a second)')
+    k = A.commands.keys()
+    k.sort()
+    for name in k:
+        i = A.commands[name]
+        obj.pmu('  [%s%s]: %s (%s)' % (A.prefix, name, i['desc'], i['usage']))
+        time.sleep(1)
+
+@P.cmd('opme', admin=True, usage='{cmd}')
+def cmdOpme(obj):
+    if A.red.sismember('i.%s.chan.%s.ops' % (obj.nid, obj.dest.replace('#', '')), obj.nick.lower()):
+        return obj.reply('Nice try! You\'re alreay an op!')
+    i = A.red.get('i.%s.worker.%s.%s.op' % (obj.nid, obj.id, obj.dest.replace('#', '')))
+    if i and int(i):
+        obj.raw('MODE %s +o %s' % (obj.dest, obj.nick))
+        return obj.reply(random.choice(s_opmsgs))
+    return obj.reply('The bot is not an OP so we cant do that! D:')
+
+@P.cmd('maintence', admin=True, usage='{cmd} set={bool}, msg=A spam message', kwargs=True, kbool=['set'], desc="Enable/Disable the bot maintence mode.", alias=['safemode'])
+def cmdMaintence(obj):
+    if not 'set' in obj.kwargs: return obj.usage()
+    A.red.publish('irc.m', json.dumps({'tag':'MAINTENCE', 'mode':obj.kwargs.get('set', False)}))
+    if obj.kwargs.get('set'): obj.reply('We are now in maintence mode! Only admins may use commands.')
+    else: obj.reply('Maintence mode deactivated! All users may use commands.')
+    if obj.kwargs.get('msg'):
+        if not obj.kwargs.get('msg').strip(' '): return obj.reply('You cannot send a blank message!')
+        for chan in A.red.smembers('i.%s.chans' % obj.nid):
+            obj.send(chan, obj.kwargs.get('msg'))
+    #@TODO Add global spam option
+
+@P.cmd('config', usage="{cmd} [set/get] key value", op=True)
+def cmdConfig(obj): pass
+
+@P.cmd('secret', usage='{cmd}')
 def cmdSecret(obj):
-    obj.reply('Congrats! You found the secret!')
-    #@TODO Kick the user :D
+    i = A.red.get('i.%s.worker.%s.%s.op' % (obj.nid, obj.id, obj.dest.replace('#', '')))
+    if i and int(i):
+        return obj.raw('KICK %s %s :%s' % (obj.dest, obj.nick, 'Congrats! You found the secret!'))
+    obj.usage()
 
 @P.cmd('join', admin=True, usage="{cmd} <chan>")
 def cmdJoin(obj):
@@ -30,8 +77,8 @@ def cmdPart(obj):
         else: msg = "Bot is leaving..."
         chan = obj.m[1].replace('#', '').lower()
         if A.red.sismember('i.%s.chans' % obj.nid, chan):
-            i = {'tag':'PART', 'chan':chan, 'msg':msg}
-            A.red.rpush('i.%s.chan.%s' % (obj.nid, chan), json.dumps(i))
+            i = {'tag':'PART', 'chan':chan, 'msg':msg, 'nid':obj.nid}
+            A.red.publish('irc.master', json.dumps(i))
             return obj.reply('Bot has quit channel "#%s"' % chan)
         obj.reply('Bot is not in channel "#%s' % chan)
 
@@ -69,10 +116,12 @@ def cmdReload(obj):
     desc="Send a message from the bot")
 def cmdMsg(obj):
     if len(obj.m) == 1: return obj.usage()
-    obj.sess['msg'] = obj.kwargs.get('msg', ' '.join(obj.m[1:]))
+    if not 'msg' in obj.kwargs: return obj.reply('You must specify a message to send!')
+    obj.sess['msg'] = obj.kwargs.get('msg', '')
     obj.sess['chan'] = [i.strip() for i in obj.kwargs.get('chan', obj.dest).split(',')]
     obj.sess['nick'] = obj.kwargs.get('nick', True)
     obj.sess['force'] = obj.kwargs.get('force', False)
+    if not obj.sess['msg'].strip(' '): return obj.reply('You cannot send an empty message!')
     if obj.sess['nick']: obj.sess['msg'] = "%s: %s" % (obj.nick, obj.sess['msg'])
     else: obj.msg = obj.sess['msg']
     if obj.sess['chan'] == ['*']: pass #@TODO do this

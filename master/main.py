@@ -5,8 +5,6 @@ from parser import Parser
 from data import ConfigFile
 import api
 
-print 'Auto update ftw!'
-
 default_cfg = {
     'networks':[
         {
@@ -59,6 +57,8 @@ class Worker(object):
         thread.start_new_thread(self.getReady, ())
 
     def join(self, chan, send=True):
+        for key in red.keys('i.%s.chan.%s' % (self.nid, chan)):
+            red.delete(key)
         self.chans.append(chan)
         self.net.channels[chan] = self
         if chan in self.net.pws: pw = red.get('i.%s.chan.%s.pw' % (self.nid, chan))
@@ -175,7 +175,10 @@ class Network(object):
             k = 1
             self.workers[k] = Worker(k, self)
 
+
         red.sadd('i.%s.workers' % self.id, k)
+        for i in red.keys('i.%s.worker.%s.*' % (self.id, k)):
+            red.delete(i)
         red.delete('i.%s.worker.%s' % (self.id, k)) #Make sure we empty stuff
         self.workers[k].setup(reply)
 
@@ -269,6 +272,7 @@ class Master(object):
         if red.llen('i.masters') == 0:
             for i in self.networks.values():
                 i.quit(msg)
+        sys.exit()
 
     def recover(self):
         for nid in self.networks.keys():
@@ -314,6 +318,8 @@ class Master(object):
                             self.isMaster = False
                             print 'Error, we have a <1 ID'
                             sys.exit()
+                elif i['tag'] == 'MAINTENCE':
+                    self.parser.A.maintence = i['mode']
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     self.active = False
@@ -336,6 +342,7 @@ class Master(object):
                 if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
                 elif msg['tag'] == 'ID': self.networks[msg['nid']].recover(msg)
                 elif msg['tag'] == 'JOIN': self.networks[msg['nid']].joinChannel(msg['chan'])
+                elif msg['tag'] == 'PART': self.networks[msg['nid']].partChannel(msg['chan'], msg['msg'])
                 elif msg['tag'] == 'QUIT': self.quit(msg=msg['msg'])
                 elif 'nid' in msg and 'id' in msg:
                     if msg['id'] not in self.networks[msg['nid']].workers.keys(): continue
@@ -357,5 +364,5 @@ class Master(object):
                 time.sleep(1)
             m.addWorker(reply)
 
-#m = Master()
-#m.boot()
+if __name__ == '__main__':
+    print "You must start the master with the command 'python start.py'"
