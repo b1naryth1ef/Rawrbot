@@ -56,7 +56,7 @@ class Worker(object):
         thread.start_new_thread(self.getReady, ())
 
     def join(self, chan, send=True):
-        for key in red.keys('i.%s.chan.%s' % (self.nid, chan)):
+        for key in red.keys('i.%s.chan.%s.*' % (self.nid, chan)):
             red.delete(key)
         self.chans.append(chan)
         self.net.channels[chan] = self
@@ -202,10 +202,12 @@ class Network(object):
                     self.channels[i].part(i, 'Bot Swapping...')
                     w.join(i)
 
-    def rmvWorker(self, wid): #@TODO Reallocate channels?
+    def rmvWorker(self, wid): #@TODO Reallocate channels?    
         red.srem('i.%s.workers' % self.id, wid)
         del self.workers[wid]
         self.workers[wid] = None
+        for chan in red.smembers('i.%s.chan.%s' % self.id, wid):
+            self.joinChannel(chan)
 
     def ping(self):
         for i in self.workers.values():
