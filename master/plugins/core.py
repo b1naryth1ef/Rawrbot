@@ -236,8 +236,8 @@ def loopCall():
                 A.red.hset(k, 'active', 0)
                 print 'Q1'
                 continue
-            print time.time()-float(A.red.hget(k, 'last')), float(A.red.hget(k, 'time'))
-            if (time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
+            print float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time'))
+            if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
                 print 'Q2'
                 continue
             A.red.hset(k, 'last',   time.time())
