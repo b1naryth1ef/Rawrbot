@@ -56,8 +56,6 @@ class Worker(object):
         thread.start_new_thread(self.getReady, ())
 
     def join(self, chan, send=True):
-        for key in red.keys('i.%s.chan.%s.*' % (self.nid, chan)):
-            red.delete(key)
         self.chans.append(chan)
         self.net.channels[chan] = self
         if chan in self.net.pws: pw = red.get('i.%s.chan.%s.pw' % (self.nid, chan))
