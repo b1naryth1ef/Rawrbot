@@ -182,7 +182,7 @@ def cmdAddspam(obj):
     obj.sess['channels'] = obj.kwargs.get('chans', '')
     obj.sess['chans'] = list(A.red.smembers('i.%s.chans' % obj.nid))
     if obj.sess['channels']:
-        obj.sess['chans'] = [i.strip().replace('#', '') for i in obj.kwargs.get(obj.sess['channels'], obj.dest).split(',')]
+        obj.sess['chans'] = [i.strip().replace('#', '') for i in obj.sess['channels'].split(',')]
     else: return obj.reply('Incorrect format for kwarg "chans"')
     if not obj.sess['duration'].isdigit() and obj.sess['time'].isdigit():
         return obj.reply('Time and Duration kwargs must be integers (numbers)')
