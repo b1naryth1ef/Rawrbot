@@ -143,6 +143,8 @@ class Network(object):
     def joinChannel(self, chan):
         chan = chan.replace('#', '')
         red.delete('i.%s.chan.%s' % (self.id, chan))
+        red.delete('i.%s.chan.%s.users' % (self.id, chan))
+        red.delete('i.%s.chan.%s.ops' % (self.id, chan))
         m = None
         for i in self.workers.values():
             if m == None: m = i

@@ -162,7 +162,7 @@ def cmdMsg(obj):
             obj.reply('Failed sending to the following channels: %s' % ', '.join(fails))
 
 @P.cmd('status', admin=True, usage="{cmd}", desc="Gets info about the bot")
-def cmdStatus(obj):
+def cmdStatus(obj): #@TODO Update
     num_workers = A.red.scard('i.%s.workers' % obj.nid)
     num_masters = A.red.llen('i.masters')
     chans = A.red.smembers('i.%s.chans' % obj.nid)
@@ -183,7 +183,6 @@ def cmdStatus(obj):
     obj.reply(' # of Channels: %s' % num_chans)
     obj.reply(' # of Users: %s' % num_t)
     obj.reply(' # of Unique Users: %s' % num_u)
-    obj.reply('--------------------')
 
 @P.cmd('addspam', admin=True, kwargs=True, kbool=['spam'],
     usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all) spam={bool}',

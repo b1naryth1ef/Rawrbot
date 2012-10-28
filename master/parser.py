@@ -25,7 +25,6 @@ class Parser(object):
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey:
                 for i in q['nicks']:
-                    print 'USER:', i
                     if nickkey in i:
                         if i.startswith('@'):
                             id = int(i[-1])
@@ -34,6 +33,7 @@ class Parser(object):
                     if i[0] == '@':
                         i = i[1:].lower()
                         self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], q['chan']), i)
+                        print 'ISOP: %s' % i
                     elif i[0] == '+': i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
                     self.red.sadd('i.%s.user.%s.chans' % (q['nid'], i.lower()), q['chan'])
