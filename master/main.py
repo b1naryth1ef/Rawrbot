@@ -204,7 +204,7 @@ class Network(object):
         red.srem('i.%s.workers' % self.id, wid)
         del self.workers[wid]
         self.workers[wid] = None
-        for chan in red.smembers('i.%s.chan.%s' % self.id, wid):
+        for chan in red.smembers('i.%s.chan.%s' % (self.id, wid)):
             self.joinChannel(chan)
 
     def ping(self):
