@@ -7,6 +7,20 @@ s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 
 s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
 s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://', 'ace']
 s_opmsgs = ['Enjoy your +o', 'IMA PUT MY OP IN YOU', 'There you go', '<3', 'Now can we mode +b *!*@* plz?', 'Whose the best bot evar?']
+s_about = [
+    "RawrBot is a fast, smart and distributed IRC bot built for the Urban Terror Community by the RawrBot team.",
+    "Lead Developer: B1naryTh1ef",
+    "Lead PR/Manager: ButteredBread",
+    "Assistant PR: Nova``",
+    "Additional help from: TheRick and neek"
+]
+
+@P.cmd('about')
+def cmdAbout(obj):
+    obj.pmu('About RawrBot:')
+    for msg in s_about:
+        obj.pmu('  '+msg)
+        time.sleep(1)
 
 @P.cmd('channels', admin=True)
 def cmdChannels(obj):
@@ -171,8 +185,8 @@ def cmdStatus(obj):
     obj.reply(' # of Unique Users: %s' % num_u)
     obj.reply('--------------------')
 
-@P.cmd('addspam', admin=True, kwargs=True,
-    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all)',
+@P.cmd('addspam', admin=True, kwargs=True, kbool=['spam'],
+    usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all) spam={bool}',
     desc="Add a message to be spammed regularly")
 def cmdAddspam(obj):
     if not obj.kwargs: return obj.usage()
@@ -194,9 +208,10 @@ def cmdAddspam(obj):
     A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(int(obj.sess['duration'])*60))
     A.red.hset('i.p.core.spam.%s' % num, 'active', 1)
     obj.reply('Spam #%s was added!' % num)
+    if obj.kwargs.get('spam'): A.callHook('core_push_spam', num)
 
-@P.cmd('editspam', admin=True, kwargs=True, kbool=['delete', 'active'],
-    usage='{cmd} id msg=Edited message duration=New duration time=New time active={bool} delete={bool}',
+@P.cmd('editspam', admin=True, kwargs=True, kbool=['delete', 'active', 'spam'],
+    usage='{cmd} id msg=Edited message duration=New duration time=New time active={bool} delete={bool}, spam={bool}',
     desc="Edit a spam message, you *cannot* edit the channels of a spam!")
 def cmdEditspam(obj):
     if not obj.kwargs: return obj.usage()
@@ -211,13 +226,15 @@ def cmdEditspam(obj):
         A.red.hset(s, 'time', int(obj.kwargs.get('time'))*60)
     elif 'duration' in obj.kwargs:
         if not obj.kwargs.get('time').isdigit(): return obj.reply('Duration kwarg must be integer (number)!')
-        if obj.kwargs.get('duration')[0] in ['-', '0']: A.red.hset(s, 'end', 0)
+        if obj.kwargs.get('duration')[0] in ['-']: A.red.hset(s, 'end', 0)
         else: A.red.hset(s, 'end', time.time()+(int(obj.kwargs.get('duration')*60)))
     elif 'active' in obj.kwargs:
         A.red.hset(s, 'active', int(obj.kwargs.get('active')))
     elif 'delete' in obj.kwargs:
         A.red.delete(s)
         return obj.reply('Deleted spam #%s!' % obj.m[1])
+    if 'spam' in obj.kwargs:
+        A.callHook('core_push_spam', int(obj.m[1]))
     A.red.hset(s, 'data', json.dumps(obj.sess['data']))
     obj.reply('Edited spam #%s!' % obj.m[1])    
 
@@ -228,7 +245,19 @@ def cmdViewspam(obj):
         active = A.red.hget(key, 'active')
         obj.reply('#%s - "%s" - Active: %s' % (key.split('.')[-1], msg, bool(active)))
 
-@P.loop(58) #This gets out of sync slowley, do we care that much? Prolly not.
+@P.apih('core_push_spam')
+def corePushSpam(id, update_time=True):
+    k = 'i.p.core.spam.%s' % id
+    if update_time: A.red.hset(k, 'last',   time.time())
+    data = json.loads(A.red.hget(k, 'data'))
+    for chan in data['chans']:
+        _v = A.red.get('i.%s.chan.%s.cfg.spams' % (data['nid'], chan))
+        if _v and not int(_v): continue
+        if A.red.sismember('i.%s.chans' % data['nid'], chan):
+            A.write(data['nid'], chan, data['msg'])
+        else: print 'Not in channel %s' % chan #@TODO Fix this
+
+@P.loop(55) #This gets out of sync slowley, do we care that much? Prolly not.
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
         if int(A.red.hget(k, 'active')):
@@ -237,12 +266,4 @@ def loopCall():
                 continue
             if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
                 continue
-            A.red.hset(k, 'last',   time.time())
-            data = json.loads(A.red.hget(k, 'data'))
-            print data['chans']
-            for chan in data['chans']:
-                _v = A.red.get('i.%s.chan.%s.cfg.spams' % (data['nid'], chan))
-                if _v and not int(_v): continue
-                if A.red.sismember('i.%s.chans' % data['nid'], chan):
-                    A.write(data['nid'], chan, data['msg'])
-                else: print 'Not in channel %s' % chan #@TODO Fix this
+            A.callHook('core_push_spam', int(k.split('.')[-1]))

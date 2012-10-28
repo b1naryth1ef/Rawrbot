@@ -133,6 +133,11 @@ class API(object):
         self.maintence = False
         self.canLoop = False
 
+    def callHook(self, hook, *args, **kwargs):
+        if hook in self.hooks.keys():
+            return self.hooks[hook](*args, **kwargs)
+        #@TODO Error here?
+
     def loadLoops(self):
         print 'Starting loops!'
         for i in self.loops:
@@ -190,6 +195,9 @@ class API(object):
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                 return
             if obj._cmd['op'] and not self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower()):
+                msg = "You must be an op to use that command!"
+                if obj.pm: self.writeUser(data, data['nick'], msg)
+                else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                 return False
             if obj._cmd['kwargs']:
                 obj.kwargs = dict(re.findall(r'([^ \=]+)\=[ ]*(.+?)?(?:(?= [^ \\]+\=)|$)', ' '.join(m[1:])))

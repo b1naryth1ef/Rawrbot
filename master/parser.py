@@ -30,23 +30,24 @@ class Parser(object):
                         if i.startswith('@'):
                             id = int(i[-1])
                             self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 1)
-                            print "Bot is an op: %s/%s" % (i, q['chan'])
                         continue #@NOTE We dont count ourselves
                     if i[0] == '@':
                         i = i[1:].lower()
                         self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], q['chan']), i)
-                        print 'User is op: %s/%s' % (i, q['chan'])
                     elif i[0] == '+': i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
+                    self.red.sadd('i.%s.user.%s.chans' % (q['nid'], i.lower()), q['chan'])
         elif q['tag'] == 'TOPIC': pass
         elif q['tag'] == 'JOIN':
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey in q['nick']: return
             self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
+            self.red.sadd('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
             self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], id=q['id'])
         elif q['tag'] == 'PART':
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
             self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower()) #@NOTE We dont care if this works/doesnt
+            self.red.srem('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
             self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], id=q['id'])
         elif q['tag'] == 'KICK':
             q['kicked'] = q['kicked'].lower()
@@ -58,18 +59,16 @@ class Parser(object):
             self.A.fireEvent('KICK', **q)
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
             self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower())
+            self.red.srem('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
         elif q['tag'] == 'MODEC':
             if q['mode'][0] in ['+', '-']:
                 self.A.fireEvent('CHANNEL_MODE', modetype=q['mode'][0], **q)
         elif q['tag'] == 'MODEU':
-            print q
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if q['mode'][0] in ['+', '-']:
                 if 'o' in q['mode']:
-                    print 'ye!', nickkey, q['target']
                     if nickkey and nickkey in q['target']:
                         id = int(q['target'][-1])
-                        print id
                         if q['mode'][0] == '+':
                             self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 1)
                         else:
@@ -77,6 +76,15 @@ class Parser(object):
                         return
                     if q['mode'][0] == '-': self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['target'].lower())
                     else: self.red.sadd('i.%s.chan.%s.ops'% (q['nid'], q['chan']), q['target'].lower())
+        elif q['tag'] == 'NICK':
+            for i in self.red.smembers('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower())):
+                self.red.srem('i.%s.chan.%s.users' % (q['nid'], i), q['nick'].lower())
+                self.red.sadd('i.%s.chan.%s.users' % (q['nid'], i), q['newnick'].lower())
+                if self.red.sismember('i.%s.chan.%s.ops' % (q['nid'], i), q['nick'].lower()):
+                    self.red.srem('i.%s.chan.%s.ops' % (q['nid'], i), q['nick'].lower())
+                    self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], i), q['newnick'].lower())
+            self.red.sinterstore('i.%s.user.%s.chans' % (q['nid'], q['newnick'].lower()), 'i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
+            self.red.delete('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
 
     def parseLoop(self):
         while True:
