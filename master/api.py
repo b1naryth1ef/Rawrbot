@@ -185,8 +185,6 @@ class API(object):
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
             if obj._cmd['admin'] is True and not obj.admin:
-                _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
-                if _v and not int(_v): return
                 msg = "You must be an admin to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
@@ -210,6 +208,8 @@ class API(object):
             thread.start_new_thread(obj._cmd['f'], (obj,))
             return True
         else:
+            _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
+            if _v and not int(_v): return
             last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
             if last and time.time()-float(last) < 5: return #Prevent spamming
             msg = 'No such command "%s"!' % obj._name
