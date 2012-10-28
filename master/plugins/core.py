@@ -234,13 +234,16 @@ def loopCall():
         if int(A.red.hget(k, 'active')):
             if time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
+                print 'Q1'
                 continue
             if (time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
+                print 'Q2'
                 continue
             A.red.hset(k, 'last',   time.time())
             data = json.loads(A.red.hget(k, 'data'))
             for chan in data['chans']:
                 _v = A.red.get('i.%s.chan.%s.cfg.spams' % (data['nid'], chan))
+                print chan, _v
                 if _v and not int(_v): continue
                 if A.red.sismember('i.%s.chans' % data['nid'], chan):
                     A.write(data['nid'], chan, data['msg'])
