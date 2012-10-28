@@ -121,6 +121,7 @@ class API(object):
         self.red = red
         self.prefix = "!"
 
+        self.configs = ['badcmd', 'spams']
         self.mods = {}
         self.plugins = {}
         self.commands = {}
@@ -184,6 +185,8 @@ class API(object):
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
             if obj._cmd['admin'] is True and not obj.admin:
+                _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
+                if _v and not int(_v): return
                 msg = "You must be an admin to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))

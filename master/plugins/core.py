@@ -49,8 +49,20 @@ def cmdMaintence(obj):
             obj.send(chan, obj.kwargs.get('msg'))
     #@TODO Add global spam option
 
-@P.cmd('config', usage="{cmd} [set/get] key value", op=True)
-def cmdConfig(obj): pass
+@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'], op=True)
+def cmdConfig(obj):
+    if len(obj.m) < 3: return obj.usage()
+    if obj.kwargs.get('value', None) == None: return obj.reply('You must give a value for kwarg "value"')
+    v = obj.m[2].strip().lower()
+    if v not in A.configs: return obj.reply('Unknown config option %s!')
+    k = 'i.%s.chan.%s.cfg.%s' % (obj.nid, obj.dest.replace('#', ''), v)
+    if obj.m[1] == 'set':
+        A.red.set(k, int(obj.kwargs.get('value')))
+        return obj.reply('Set config option "%s" to "%s"' % (v, obj.kwargs.get('value')))
+    elif obj.m[1] == 'get':
+        return obj.reply('Config option "%s" is set to "%s"' % (v, bool(int(A.red.get(k)))))
+    else:
+        return obj.reply('Option must be set or get!')
 
 @P.cmd('secret', usage='{cmd}')
 def cmdSecret(obj):
@@ -228,6 +240,8 @@ def loopCall():
             A.red.hset(k, 'last',   time.time())
             data = json.loads(A.red.hget(k, 'data'))
             for chan in data['chans']:
+                _v = A.red.get('i.%s.chan.%s.cfg.spams' % (data['nid'], chan))
+                if _v and not int(_v): continue
                 if A.red.sismember('i.%s.chans' % data['nid'], chan):
                     A.write(data['nid'], chan, data['msg'])
                 else: print 'Not in channel %s' % chan #@TODO Fix this
