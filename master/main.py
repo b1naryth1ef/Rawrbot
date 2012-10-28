@@ -1,6 +1,5 @@
 import redis, json, thread, random
-import sys, os, time
-from collections import deque
+import sys, time
 from parser import Parser
 from data import ConfigFile
 import api

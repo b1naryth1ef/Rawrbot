@@ -1,5 +1,4 @@
 import json, thread
-import api
 
 class Parser(object):
     def __init__(self, master, red, a):
@@ -44,11 +43,11 @@ class Parser(object):
             nickkey = self.red.get('i.%s.nickkey' % q['nid'])
             if nickkey in q['nick']: return
             self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
-            self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], wid=q['wid'])
+            self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], id=q['id'])
         elif q['tag'] == 'PART':
             self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
             self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower()) #@NOTE We dont care if this works/doesnt
-            self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], wid=q['wid'])
+            self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], id=q['id'])
         elif q['tag'] == 'KICK':
             q['kicked'] = q['kicked'].lower()
             q['nick'] = q['nick'].lower()
