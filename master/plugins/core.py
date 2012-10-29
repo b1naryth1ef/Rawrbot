@@ -263,11 +263,11 @@ def cmdViewspam(obj):
         obj.reply('#%s - "%s" - Active: %s' % (key.split('.')[-1], msg, bool(active)))
 
 @P.apih('core_spam_add')
-def coreSpamAdd(nid, msg, chans, duration, time, active=1):
+def coreSpamAdd(nid, msg, chans, duration, timex, active=1):
     num = len(A.red.keys('i.p.core.spam.*'))+1
     m = {'msg':msg, 'chans':chans, 'nid':nid}
     A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
-    A.red.hset('i.p.core.spam.%s' % num, 'time', time*60)
+    A.red.hset('i.p.core.spam.%s' % num, 'time', timex*60)
     A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
     A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(duration*60))
     A.red.hset('i.p.core.spam.%s' % num, 'active', active)
