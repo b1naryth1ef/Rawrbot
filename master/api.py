@@ -39,15 +39,11 @@ class FiredCommand(FiredEvent):
 
     def isBotOp(self):
         i = self._api.red.get('i.%s.worker.%s.%s.op' % (self.nid, self.id, self.dest.replace('#', '')))
-        if i:
-            return bool(int(i))
+        if i: return bool(int(i))
         return False
 
-    def pmu(self, msg):
-        self.privmsg(self.nick, msg)
-
-    def smu(self, msg):
-        self.send(self.dest, msg)
+    def pmu(self, msg): self.privmsg(self.nick, msg)
+    def smu(self, msg): self.send(self.dest, msg)
 
     def usage(self):
         i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
@@ -178,6 +174,8 @@ class API(object):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
 
     def parseCommand(self, data):
+        _v = A.red.get('i.%s.chan.%s.cfg.ignorecmd' % (data['nid'], data['dest'].replace('#', '')))
+        if _v and not int(_v): return
         m = data['msg'].split(' ')
         obj = FiredCommand(self, m[0][len(self.prefix):], data)
         obj.m = m

@@ -223,15 +223,9 @@ def cmdAddspam(obj):
     else: return obj.reply('Incorrect format for kwarg "chans"')
     if not obj.sess['duration'].isdigit() and obj.sess['time'].isdigit():
         return obj.reply('Time and Duration kwargs must be integers (numbers)')
-    num = len(A.red.keys('i.p.core.spam.*'))+1
-    m = {'msg':obj.kwargs.get('msg'), 'chans':obj.sess['chans'], 'nid':obj.nid}
-    A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
-    A.red.hset('i.p.core.spam.%s' % num, 'time', int(obj.sess['time'])*60)
-    A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
-    A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(int(obj.sess['duration'])*60))
-    A.red.hset('i.p.core.spam.%s' % num, 'active', 1)
+    num = A.callHook('core_spam_add', obj.nid, obj.kwargs.get(msg), obj.sess['chans'], int(obj.kwargs.get('duration')), int(obj.kwargs.get('time')))
     obj.reply('Spam #%s was added!' % num)
-    if obj.kwargs.get('spam'): A.callHook('core_push_spam', num)
+    if obj.kwargs.get('spam'): A.callHook('core_spam_push', num)
 
 @P.cmd('editspam', admin=True, kwargs=True, kbool=['delete', 'active', 'spam'],
     usage='{cmd} id msg=Edited message duration=New duration time=New time active={bool} delete={bool}, spam={bool}',
@@ -257,7 +251,7 @@ def cmdEditspam(obj):
         A.red.delete(s)
         return obj.reply('Deleted spam #%s!' % obj.m[1])
     if 'spam' in obj.kwargs:
-        A.callHook('core_push_spam', int(obj.m[1]))
+        A.callHook('core_spam_push', int(obj.m[1]))
     A.red.hset(s, 'data', json.dumps(obj.sess['data']))
     obj.reply('Edited spam #%s!' % obj.m[1])    
 
@@ -268,8 +262,19 @@ def cmdViewspam(obj):
         active = A.red.hget(key, 'active')
         obj.reply('#%s - "%s" - Active: %s' % (key.split('.')[-1], msg, bool(active)))
 
-@P.apih('core_push_spam')
-def corePushSpam(id, update_time=True):
+@P.apih('core_spam_add')
+def coreSpamAdd(nid, msg, chans, duration, time, active=1):
+    num = len(A.red.keys('i.p.core.spam.*'))+1
+    m = {'msg':msg, 'chans':chans, 'nid':nid}
+    A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
+    A.red.hset('i.p.core.spam.%s' % num, 'time', time*60)
+    A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
+    A.red.hset('i.p.core.spam.%s' % num, 'end', time.time()+(duration*60))
+    A.red.hset('i.p.core.spam.%s' % num, 'active', active)
+    return num
+
+@P.apih('core_spam_push')
+def coreSpamPush(id, update_time=True):
     k = 'i.p.core.spam.%s' % id
     if update_time: A.red.hset(k, 'last',   time.time())
     data = json.loads(A.red.hget(k, 'data'))
@@ -284,9 +289,9 @@ def corePushSpam(id, update_time=True):
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
         if int(A.red.hget(k, 'active')):
-            if time.time() > float(A.red.hget(k, 'end')):
+            if int(A.red.hget(k, 'end')) != -1 and time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
             if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
                 continue
-            A.callHook('core_push_spam', int(k.split('.')[-1]))
+            A.callHook('core_spam_push', int(k.split('.')[-1]))
