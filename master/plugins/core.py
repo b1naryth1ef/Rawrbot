@@ -5,7 +5,7 @@ P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
 
 s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 'refactor', 'git reset --hard']
 s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
-s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://', 'ace']
+s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://']
 s_opmsgs = ['Enjoy your +o', 'IMA PUT MY OP IN YOU', 'There you go', '<3', 'Now can we mode +b *!*@* plz?', 'Whose the best bot evar?']
 s_about = [
     "RawrBot is a fast, smart and distributed IRC bot built for the Urban Terror Community by the RawrBot team.",
@@ -24,7 +24,7 @@ def cmdDerp(obj):
     if len(obj.m) < 2: return
     if obj.m[1] == 'neek': return obj.reply("Sorry, I'm too drunk to respond right now, please contact me by buying booze and placing it outside my condo door.")
     elif obj.m[1] == 'tony': return obj.reply('Hit. HIT. HIT HIT HIT HIT. Stay. HIT. HIT MOTHERFUCKER. Hit. Stay? Hit. Hit mystery. Hit trippy.')
-    elif obj.m[1] == 'ictere': return obj.reply("The laws of phsyics make your statement incorrect.")
+    elif obj.m[1] == 'ictere': return obj.reply("The laws of physics make your statement incorrect.")
     elif obj.m[1] == 'scuba': return obj.reply('ROBOTS!')
     elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
     
