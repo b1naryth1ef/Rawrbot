@@ -1,5 +1,5 @@
 import redis, json, thread, random
-import sys, time
+import sys, time, os
 from parser import Parser
 from data import ConfigFile
 import api
@@ -206,8 +206,9 @@ class Network(object):
         red.srem('i.%s.workers' % self.id, wid)
         del self.workers[wid]
         self.workers[wid] = None
-        for chan in red.smembers('i.%s.chans' % self.id):
-            self.joinChannel(chan)
+        if self.master.alive:
+            for chan in red.smembers('i.%s.chans' % self.id):
+                self.joinChannel(chan)
 
     def ping(self):
         for i in self.workers.values():
@@ -268,6 +269,7 @@ class Master(object):
             self.quit()
 
     def quit(self, msg='Bot is going down!'):
+        self.active = False
         red.publish('irc.m', {'tag':'DC', 'index':1, 'id':self.uid})
         red.lrem('i.masters', self.uid, 0)
         if red.llen('i.masters') == 0:
@@ -324,7 +326,8 @@ class Master(object):
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     os.popen('git pull origin deploy')
-                    self.parser.A.reloadPlugins()
+                    os.execl(sys.executable, *([sys.executable]+sys.argv))
+                    #self.parser.A.reloadPlugins()
                 else:
                     print i
         s.unsubscribe('irc.m.%s' % self.uid)

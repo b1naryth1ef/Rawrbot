@@ -28,7 +28,7 @@ class Parser(object):
         if 'chan' in q:
             q['chan'] = q['chan'].replace('#', '').lower()
         if q['tag'] == "MSG":
-            if q['msg'].startswith(self.A.prefix) and len(q['msg'] > 1) and q['msg'][1] != ' ': 
+            if q['msg'].startswith(self.A.prefix) and len(q['msg']) > 1 and q['msg'][1] != ' ': 
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', **q)
         elif q['tag'] == 'NAMES': #@TODO Cleanup
