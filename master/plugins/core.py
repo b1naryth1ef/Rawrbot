@@ -1,5 +1,5 @@
 from api import Plugin, A
-import json, time, random
+import json, time, random, os
 
 P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
 
@@ -15,10 +15,19 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
-@P.cmd('neek', nolist=True)
-def cmdNeek(obj):
-    obj.reply("Sorry, I'm to drunk to respond right now, please contact me by buying booze and placing it outside my bedroom door")
+@P.cmd('hit')
+def cmdHit(obj):
+    return obj.reply("No tony, its not implemented yet.")
 
+@P.cmd('derp', nolist=True)
+def cmdDerp(obj):
+    if len(obj.m) < 2: return
+    if obj.m[1] == 'neek': return obj.reply("Sorry, I'm too drunk to respond right now, please contact me by buying booze and placing it outside my condo door.")
+    elif obj.m[1] == 'tony': return obj.reply('Hit. HIT. HIT HIT HIT HIT. Stay. HIT. HIT MOTHERFUCKER. Hit. Stay? Hit. Hit mystery. Hit trippy.')
+    elif obj.m[1] == 'ictere': return obj.reply("The laws of phsyics make your statement incorrect.")
+    elif obj.m[1] == 'scuba': return obj.reply('ROBOTS!')
+    elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
+    
 @P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", admin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
     obj.reply('Pulling update from git...')
@@ -77,7 +86,6 @@ def cmdMaintence(obj):
         if not obj.kwargs.get('msg').strip(' '): return obj.reply('You cannot send a blank message!')
         for chan in A.red.smembers('i.%s.chans' % obj.nid):
             obj.send(chan, obj.kwargs.get('msg'))
-    #@TODO Add global spam option
 
 @P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'])
 def cmdConfig(obj):

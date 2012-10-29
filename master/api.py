@@ -39,7 +39,9 @@ class FiredCommand(FiredEvent):
 
     def isBotOp(self):
         i = self._api.red.get('i.%s.worker.%s.%s.op' % (self.nid, self.id, self.dest.replace('#', '')))
-        return bool(int(i))
+        if i:
+            return bool(int(i))
+        return False
 
     def pmu(self, msg):
         self.privmsg(self.nick, msg)
@@ -300,6 +302,14 @@ class API(object):
             self.plugins[f].loaded(mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
+        for i in self.loops:
+            i.stop()
+        self.commands = {}
+        self.alias = {}
+        self.hook_key = {}
+        self.apis = {}
+        self.hooks = {}
+        self.loops = []
         if self.canLoop: self.unloadLoops()
         for plugin in self.plugins.values():
             plugin.reload()

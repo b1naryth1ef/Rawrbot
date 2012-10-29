@@ -206,7 +206,7 @@ class Network(object):
         red.srem('i.%s.workers' % self.id, wid)
         del self.workers[wid]
         self.workers[wid] = None
-        if self.master.alive:
+        if self.master.active:
             for chan in red.smembers('i.%s.chans' % self.id):
                 self.joinChannel(chan)
 
@@ -327,6 +327,7 @@ class Master(object):
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     os.popen('git pull origin deploy')
                     os.execl(sys.executable, *([sys.executable]+sys.argv))
+                    sys.exit()
                     #self.parser.A.reloadPlugins()
                 else:
                     print i
