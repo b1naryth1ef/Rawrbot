@@ -113,6 +113,8 @@ class Worker(object):
                     self.p('MODEU', target=m[4], chan=m[2], mode=m[3], nick=nick, host=host)
             elif m[1] == 'NICK':
                 self.p('NICK', nick=nick, host=host, newnick=m[2][1:])
+            elif m[1] == 'QUIT':
+                self.p('QUIT', nick=nick, host=host, msg=m[2][1:])
 
     def p(self, tag, **kwargs): #Any master can parse a message pushed here
         kwargs['tag'] = tag

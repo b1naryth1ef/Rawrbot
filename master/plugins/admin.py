@@ -42,6 +42,14 @@ def hookKickWorker(obj):
     A.red.set('i.p.core.kickw.%s' % obj.kicked, 1)
     adminAddReport('Worker kicked from channel: %s' % obj.msg, obj.kicked, obj.chan, obj.nid)
 
+@P.cmd('kick', admin=True, usage='{cmd} <user> msg=msg', kwargs=True, desc="Kick a user from your channel, with an optional message.")
+def cmdKick(obj):
+    if len(obj.m) < 2:
+        return obj.usage()
+    if obj.isBotOp():
+        return obj.raw('KICK %s %s :%s' % (obj.dest, obj.m[1], obj.kwargs.get('msg', '')))
+    obj.reply('The bot is not an operator, and as such cannot complete your command!')
+
 @P.cmd('report', usage='{cmd} My message to admins', 
     desc="Send a message to the admins (IN ENGLISH), or ask for assistance. (Abuse results in banz!)")
 def cmdReport(obj):
@@ -71,7 +79,7 @@ def cmdRlist(obj):
         obj.reply('#%s: "%s" - %s %s' % (key.split('.')[-1], msg, user, chan))
 
 @P.cmd('redit', admin=True, kwargs=True, kbool=['active', 'delete'],
-    usage="{cmd} id active={bool} delete={bool}")
+    usage="{cmd} id active={bool} delete={bool}", desc="Edit a report.")
 def cmdRedit(obj):
     if len(obj.m) < 2: return obj.usage()
     if not obj.m[1].isdigit(): return obj.reply('ID needs to be an integer (number)!')

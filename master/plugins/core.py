@@ -15,6 +15,21 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
+@P.cmd('neek', nolist=True)
+def cmdNeek(obj):
+    obj.reply("Sorry, I'm to drunk to respond right now, please contact me by buying booze and placing it outside my bedroom door")
+
+@P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", admin=True, kwargs=True, kbool=['verbose', 'reload'])
+def cmdUpdate(obj):
+    obj.reply('Pulling update from git...')
+    l = os.popen('git pull origin deploy').readlines()
+    if obj.kwargs.get('verbose'):
+        for i in l:
+            obj.pmu(i.strip())
+    if obj.kwargs.get('reload'):
+        obj.reply('Reloading plugins...')
+        A.reloadPlugins(obj.reply, 'Reloaded all plugins!')
+
 @P.cmd('about')
 def cmdAbout(obj):
     obj.pmu('About RawrBot:')
@@ -38,7 +53,8 @@ def cmdCommands(obj):
     k.sort()
     for name in k:
         i = A.commands[name]
-        obj.pmu('  [%s%s]: %s (%s)' % (A.prefix, name, i['desc'], i['usage']))
+        if i['nolist']: continue
+        obj.pmu('  [%s%s]: %s' % (A.prefix, name, i['desc']))
         time.sleep(1)
 
 @P.cmd('opme', admin=True, usage='{cmd}')
@@ -65,7 +81,7 @@ def cmdMaintence(obj):
 
 @P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'])
 def cmdConfig(obj):
-    if not obj.op or obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
+    if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
     if obj.kwargs.get('value', None) == None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
     v = obj.m[2].strip().lower()
@@ -79,12 +95,11 @@ def cmdConfig(obj):
     else:
         return obj.reply('Option must be set or get!')
 
-@P.cmd('secret', usage='{cmd}')
+@P.cmd('secret', usage='{cmd}', nolist=True)
 def cmdSecret(obj):
-    i = A.red.get('i.%s.worker.%s.%s.op' % (obj.nid, obj.id, obj.dest.replace('#', '')))
-    if i and int(i):
+    if obj.isBotOp():
         return obj.raw('KICK %s %s :%s' % (obj.dest, obj.nick, 'Congrats! You found the secret!'))
-    obj.usage()
+    obj.reply('I DONT KNOW WHAT YOUR TALKING ABOUT!')
 
 @P.cmd('join', admin=True, usage="{cmd} <chan>")
 def cmdJoin(obj):

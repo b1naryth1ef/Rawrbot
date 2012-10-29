@@ -37,6 +37,10 @@ class FiredCommand(FiredEvent):
         if self.pm: self.privmsg(self.nick, msg)
         else: self.send(self.dest, '%s: %s' % (self.nick, msg))
 
+    def isBotOp(self):
+        i = self._api.red.get('i.%s.worker.%s.%s.op' % (self.nid, self.id, self.dest.replace('#', '')))
+        return bool(int(i))
+
     def pmu(self, msg):
         self.privmsg(self.nick, msg)
 
@@ -227,7 +231,7 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False):
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False):
        # print 'Adding %s' % name
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
@@ -239,7 +243,8 @@ class API(object):
             'usage':usage,
             'alias':alias,
             'desc':desc,
-            'op':op
+            'op':op,
+            'nolist':nolist
         }
 
         for i in alias:

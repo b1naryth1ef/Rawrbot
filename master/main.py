@@ -323,8 +323,8 @@ class Master(object):
                     self.parser.A.maintence = i['mode']
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
-                    self.active = False
-                    self.quit()
+                    os.popen('git pull origin deploy')
+                    self.parser.A.reloadPlugins()
                 else:
                     print i
         s.unsubscribe('irc.m.%s' % self.uid)
