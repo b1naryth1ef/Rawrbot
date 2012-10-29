@@ -73,8 +73,8 @@ class Plugin():
 
         self.api.plugins[self.realname] = self
 
-    def loaded(self):
-        self.mod = self.api.mods[self.realname]
+    def loaded(self, mod):
+        self.mod = mod
 
     def apih(self, name):
         def deco(func):
@@ -122,7 +122,6 @@ class API(object):
         self.prefix = "!"
 
         self.configs = ['badcmd', 'spams']
-        self.mods = {}
         self.plugins = {}
         self.commands = {}
         self.alias = {}
@@ -134,8 +133,8 @@ class API(object):
         self.canLoop = False
 
     def callHook(self, hook, *args, **kwargs):
-        if hook in self.hooks.keys():
-            return self.hooks[hook](*args, **kwargs)
+        if hook in self.apis.keys():
+            return self.apis[hook](*args, **kwargs)
         #@TODO Error here?
 
     def loadLoops(self):
@@ -179,6 +178,7 @@ class API(object):
         obj._prefix = self.prefix
         obj._cmd = self.getCommand(obj._name)
         obj.admin = self.isAdmin(data['nid'], data['host'])
+        obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
@@ -194,7 +194,7 @@ class API(object):
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                 return
-            if obj._cmd['op'] and not self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower()):
+            if obj._cmd['op'] and not obj.isOp:
                 msg = "You must be an op to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
                 else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
@@ -214,6 +214,7 @@ class API(object):
                             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                             return
             thread.start_new_thread(obj._cmd['f'], (obj,))
+            del obj #Cleanup (do we need to do this? maybe not...)
             return True
         else:
             _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
@@ -287,10 +288,11 @@ class API(object):
         return False
 
     def loadPlugin(self, f):
-        self.mods[f] = sys.modules['plugins.%s' % f]
-        if hasattr(f, 'onBoot'): mod.onBoot()
-        if 'f' in self.plugins:
-            self.plugins[f].loaded()
+        mod = sys.modules['plugins.%s' % f]
+        if hasattr(mod, 'onBoot'): mod.onBoot()
+        if f in self.plugins:
+            print 'Calling .loaded() of %s' % f
+            self.plugins[f].loaded(mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
         if self.canLoop: self.unloadLoops()

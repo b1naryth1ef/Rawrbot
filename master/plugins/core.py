@@ -63,10 +63,11 @@ def cmdMaintence(obj):
             obj.send(chan, obj.kwargs.get('msg'))
     #@TODO Add global spam option
 
-@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'], op=True)
+@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'])
 def cmdConfig(obj):
+    if not obj.op or obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
-    if obj.kwargs.get('value', None) == None: return obj.reply('You must give a value for kwarg "value"')
+    if obj.kwargs.get('value', None) == None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
     v = obj.m[2].strip().lower()
     if v not in A.configs: return obj.reply('Unknown config option %s!')
     k = 'i.%s.chan.%s.cfg.%s' % (obj.nid, obj.dest.replace('#', ''), v)
