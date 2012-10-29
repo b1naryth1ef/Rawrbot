@@ -123,7 +123,7 @@ class API(object):
         self.red = red
         self.prefix = "!"
 
-        self.configs = ['badcmd', 'spams']
+        self.configs = ['badcmd', 'spams', 'ignorecmd']
         self.plugins = {}
         self.commands = {}
         self.alias = {}

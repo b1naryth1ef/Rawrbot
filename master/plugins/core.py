@@ -223,7 +223,7 @@ def cmdAddspam(obj):
     else: return obj.reply('Incorrect format for kwarg "chans"')
     if not obj.sess['duration'].isdigit() and obj.sess['time'].isdigit():
         return obj.reply('Time and Duration kwargs must be integers (numbers)')
-    num = A.callHook('core_spam_add', obj.nid, obj.kwargs.get(msg), obj.sess['chans'], int(obj.kwargs.get('duration')), int(obj.kwargs.get('time')))
+    num = A.callHook('core_spam_add', obj.nid, obj.kwargs.get('msg'), obj.sess['chans'], int(obj.kwargs.get('duration')), int(obj.kwargs.get('time')))
     obj.reply('Spam #%s was added!' % num)
     if obj.kwargs.get('spam'): A.callHook('core_spam_push', num)
 
