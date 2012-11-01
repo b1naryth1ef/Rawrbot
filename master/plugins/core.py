@@ -194,7 +194,7 @@ def cmdStatus(obj): #@TODO Update
     for chan in A.red.smembers('i.%s.chans' % obj.nid):
         num_chans =+ 1
         num_usert += A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
-        A.red.sunion('i.%s.chan.%s.users' % (obj.nid, chan), 'i.temp.res')
+        A.red.sunionstore('i.temp.res', 'i.%s.chan.%s.users' % (obj.nid, chan))
     num_useru = A.red.scard('i.temp.res')
     obj.reply('------ STATUS ------')
     obj.reply(' # of Workers: %s' % num_workers)
