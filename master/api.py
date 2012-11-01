@@ -276,9 +276,10 @@ class API(object):
         return id
 
     def rmvHook(self, hid):
-        i = self.hook_key[hid]
-        self.hooks[i[1]].remove(hid)
-        del self.hook_key[hid]
+        if hid in self.hook_key:
+            i = self.hook_key[hid]
+            self.hooks[i[1]].remove(hid)
+            del self.hook_key[hid]
 
     def loadPlugins(self):
         for i in os.listdir('plugins'):
