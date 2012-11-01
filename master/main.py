@@ -46,7 +46,7 @@ class Worker(object):
         red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
     def setup(self, reply):
-        self.red.set('i.%s.worker.uptime', time.time())
+        red.set('i.%s.worker.uptime', time.time())
         red.publish(reply, json.dumps({
                 'id':self.id,
                 'nid':self.nid,
