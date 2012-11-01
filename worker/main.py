@@ -80,6 +80,10 @@ class Worker(object):
                     print 'Got end of whois, sending...'
                     self.red.lpush(self.whois[m[3].lower()]['chank'], json.dumps(self.whois[m[3].lower()]))
                     del self.whois[m[3].lower()]
+            elif m[1] == '474':
+                m = msg.split('', 4)
+                self.p('BANNED', chan=m[3], nick=m[2], msg=m[4])
+
         else:
             nick, host = m[0].split('!')
             nick = nick[1:]

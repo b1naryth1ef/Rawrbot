@@ -90,7 +90,11 @@ class Parser(object):
             self.red.sinterstore('i.%s.user.%s.chans' % (q['nid'], q['newnick'].lower()), 'i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
             self.red.delete('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
         elif q['tag'] == 'QUIT':
-            self.rmvUser(q) 
+            self.rmvUser(q)
+        elif q['tag'] == 'BANNED':
+            self.A.fireEvent('BAN_W', **q)
+            i = {'tag':'PART', 'chan':q['chan'], 'msg':'Bant...', 'nid':obj.nid}
+            self.red.publish('irc.master', json.dumps(i))
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')

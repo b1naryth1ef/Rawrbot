@@ -46,6 +46,7 @@ class Worker(object):
         red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
     def setup(self, reply):
+        self.red.set('i.%s.worker.uptime', time.time())
         red.publish(reply, json.dumps({
                 'id':self.id,
                 'nid':self.nid,
@@ -174,7 +175,6 @@ class Network(object):
             k = 1
             self.workers[k] = Worker(k, self)
 
-
         red.sadd('i.%s.workers' % self.id, k)
         for i in red.keys('i.%s.worker.%s.*' % (self.id, k)):
             red.delete(i)
@@ -235,7 +235,6 @@ class Master(object):
 
         self.networks = {}
         for num, i in enumerate(cfg.networks):
-
             self.networks[num] = Network(num, i['host'], self, plugins=i['plugins'], channels=i['chans'], auth=i['auth'])
             if i['lock_workers'] != 0:
                 self.networks[num].max_workers = i['lock_workers']
@@ -244,6 +243,7 @@ class Master(object):
         if red.llen('i.masters'):
             self.parent = red.lindex('i.masters', -1)
             self.num = red.rpush('i.masters', self.uid)
+            red.set('i.master.uptime', time.time())
         else:
             self.isMaster = True
             self.num = 1

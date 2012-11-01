@@ -174,13 +174,13 @@ class API(object):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
 
     def parseCommand(self, data):
-        _v = A.red.get('i.%s.chan.%s.cfg.ignorecmd' % (data['nid'], data['dest'].replace('#', '')))
-        if _v and not int(_v): return
         m = data['msg'].split(' ')
         obj = FiredCommand(self, m[0][len(self.prefix):], data)
+        obj._cmd = self.getCommand(obj._name)
+        _v = A.red.get('i.%s.chan.%s.cfg.ignorecmd' % (data['nid'], data['dest'].replace('#', '')))
+        if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        obj._cmd = self.getCommand(obj._name)
         obj.admin = self.isAdmin(data['nid'], data['host'])
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
@@ -231,7 +231,7 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False):
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False):
        # print 'Adding %s' % name
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
@@ -244,7 +244,8 @@ class API(object):
             'alias':alias,
             'desc':desc,
             'op':op,
-            'nolist':nolist
+            'nolist':nolist,
+            'always':always,
         }
 
         for i in alias:

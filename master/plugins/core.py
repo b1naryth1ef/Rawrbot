@@ -17,7 +17,7 @@ s_about = [
 
 @P.cmd('hit')
 def cmdHit(obj):
-    return obj.reply("No tony, its not implemented yet.")
+    return obj.reply("YOU WIN! (Yeah still not implemented...)")
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
@@ -87,7 +87,7 @@ def cmdMaintence(obj):
         for chan in A.red.smembers('i.%s.chans' % obj.nid):
             obj.send(chan, obj.kwargs.get('msg'))
 
-@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'])
+@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'], always=True)
 def cmdConfig(obj):
     if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
@@ -187,26 +187,21 @@ def cmdMsg(obj):
 
 @P.cmd('status', admin=True, usage="{cmd}", desc="Gets info about the bot")
 def cmdStatus(obj): #@TODO Update
+    A.red.delete('i.temp.res')
     num_workers = A.red.scard('i.%s.workers' % obj.nid)
     num_masters = A.red.llen('i.masters')
-    chans = A.red.smembers('i.%s.chans' % obj.nid)
-    num_chans = len(chans)
-    num_u, num_t = 0, 0,
-    q = []
-    for i in chans:
-        u = A.red.smembers('i.%s.chan.%s.users' % (obj.nid, i))
-        for user in u:
-            num_t += 1
-            if user.lower() in q: continue
-            q.append(user.lower())
-            num_u += 1
-    del q
+    num_chans, num_useru, num_usert = 0, 0, 0
+    for chan in A.red.smembers('i.%s.chans' % obj.nid):
+        num_chans =+ 1
+        num_usert += A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
+        A.red.sunion('i.%s.chan.%s.users' % (obj.nid, chan), 'i.temp.res')
+    num_useru = A.red.scard('i.temp.res')
     obj.reply('------ STATUS ------')
     obj.reply(' # of Workers: %s' % num_workers)
     obj.reply(' # of Masters: %s' % num_masters)
     obj.reply(' # of Channels: %s' % num_chans)
-    obj.reply(' # of Users: %s' % num_t)
-    obj.reply(' # of Unique Users: %s' % num_u)
+    obj.reply(' # of Users: %s' % num_usert)
+    obj.reply(' # of Unique Users: %s' % num_useru)
 
 @P.cmd('addspam', admin=True, kwargs=True, kbool=['spam'],
     usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all) spam={bool}',
@@ -265,7 +260,7 @@ def cmdViewspam(obj):
 @P.apih('core_spam_add')
 def coreSpamAdd(nid, msg, chans, duration, timex, active=1):
     num = len(A.red.keys('i.p.core.spam.*'))+1
-    m = {'msg':msg, 'chans':chans, 'nid':nid}
+    m = {'msg':msg.replace('\\', ''), 'chans':chans, 'nid':nid}
     A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
     A.red.hset('i.p.core.spam.%s' % num, 'time', timex*60)
     A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
@@ -275,6 +270,7 @@ def coreSpamAdd(nid, msg, chans, duration, timex, active=1):
 
 @P.apih('core_spam_push')
 def coreSpamPush(id, update_time=True):
+    print 'Pushing'
     k = 'i.p.core.spam.%s' % id
     if update_time: A.red.hset(k, 'last',   time.time())
     data = json.loads(A.red.hget(k, 'data'))
@@ -288,10 +284,10 @@ def coreSpamPush(id, update_time=True):
 @P.loop(55) #This gets out of sync slowley, do we care that much? Prolly not.
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
-        if int(A.red.hget(k, 'active')):
-            if int(A.red.hget(k, 'end')) != -1 and time.time() > float(A.red.hget(k, 'end')):
+        if float(A.red.hget(k, 'active')):
+            if float(A.red.hget(k, 'end')) != -1 and time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
             if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
                 continue
-            A.callHook('core_spam_push', int(k.split('.')[-1]))
+            A.callHook('core_spam_push', float(k.split('.')[-1]))

@@ -26,6 +26,10 @@ def adminAddReport(msg, nick, chan, net):
 @P.apih('admin_edit_report')
 def adminEditReport(): pass
 
+@P.hook('BAN_W')
+def hookBanWorker(obj):
+    adminAddReport('Worker banned from channel!', obj.nick, obj.chan, obj.nid)
+
 @P.hook('KICK_W')
 def hookKickWorker(obj):
     if A.red.exists('i.p.core.kickw.%s' % obj.kicked):
