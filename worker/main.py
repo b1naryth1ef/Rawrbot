@@ -48,7 +48,7 @@ class Worker(object):
         m = msg.split(' ', 2)
         if m[0] == "PING": return self.c.write('PONG')
         print msg
-        if "@" not in m[0]:
+        if "@" not in m[0] and len(m) > 1:
             if m[1] == "353": #NAMES
                 m = m[2].split(' ', 3)
                 chan = m[2]
