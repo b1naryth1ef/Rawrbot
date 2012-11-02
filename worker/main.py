@@ -84,7 +84,7 @@ class Worker(object):
                 m = msg.split('', 4)
                 self.p('BANNED', chan=m[3], nick=m[2], msg=m[4])
 
-        else:
+        elif len(m) > 1:
             nick, host = m[0].split('!')
             nick = nick[1:]
             if m[1] == "JOIN":
