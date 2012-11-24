@@ -90,10 +90,10 @@ class Worker(object):
             self.quit()
 
     def parse(self, msg):
-        if msg['tag'] == 'READY': 
+        if msg['tag'] == 'READY':
             self.ready = True
             self.net.setupWorker(self.id)
-        elif msg['tag'] == 'PONG': 
+        elif msg['tag'] == 'PONG':
             self.waitPing = False
         elif msg['tag'] == 'BYE':
             self.quit("Shutdown on worker side")
@@ -270,7 +270,7 @@ class Master(object):
 
     def quit(self, msg='Bot is going down!'):
         self.active = False
-        red.publish('irc.m', {'tag':'DC', 'index':1, 'id':self.uid})
+        red.publish('irc.m', {'tag': 'DC', 'index': 1, 'id': self.uid})
         red.lrem('i.masters', self.uid, 0)
         if red.llen('i.masters') == 0:
             for i in self.networks.values():
@@ -280,7 +280,7 @@ class Master(object):
     def recover(self):
         for nid in self.networks.keys():
             for i in red.smembers('i.%s.workers' % nid):
-                red.rpush('i.%s.worker.%s' % (nid, i), json.dumps({'tag':'ID'}))
+                red.rpush('i.%s.worker.%s' % (nid, i), json.dumps({'tag': 'ID'}))
 
     def pingLoop(self):
         while self.active:
@@ -290,10 +290,10 @@ class Master(object):
                         i.ping()
             else:
                 c = rand()
-                red.publish('irc.m.%s' % self.parent, json.dumps({'tag':'PING', 'chan':c}))
+                red.publish('irc.m.%s' % self.parent, json.dumps({'tag': 'PING', 'chan': c}))
                 if not red.blpop('i.temp.%s' % c, 10):
                     print 'Master #%s timed out on ping! Moving up in the line...' % self.parent
-                    red.publish('irc.m', json.dumps({'tag':'DC', 'index':self.num-1, 'id':self.parent}))
+                    red.publish('irc.m', json.dumps({'tag': 'DC', 'index': self.num-1, 'id': self.parent}))
                     red.lrem('i.masters', self.parent, 0)
             time.sleep(20)
 

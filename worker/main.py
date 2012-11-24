@@ -18,6 +18,9 @@ class Worker(object):
         self.lastwrite = 0
         self.pinged = False
 
+        #Server Pong Tracking
+        self.lastPong = 0
+
         self.red = redis.Redis(host="hydr0.com", password="")
         self.sub = self.red.pubsub()
 
@@ -26,12 +29,12 @@ class Worker(object):
         try:
             self.boot()
             self.active = True
-            
+
             self.connect()
             thread.start_new_thread(self.ircloop, ())
             self.redloop()
         except:
-           self.quit()
+            self.quit()
 
     def checkForPing(self):
         while self.active:
@@ -46,7 +49,10 @@ class Worker(object):
 
     def parse(self, msg):
         m = msg.split(' ', 2)
-        if m[0] == "PING": return self.c.write('PONG')
+        if m[0] == "PING":
+            print 'Pinged: %d' (time.time()-self.lastPong)
+            self.lastPong = time.time()
+            return self.c.write('PONG')
         print msg
         if "@" not in m[0] and len(m) > 1:
             if m[1] == "353": #NAMES
@@ -89,11 +95,10 @@ class Worker(object):
             nick = nick[1:]
             if m[1] == "JOIN":
                 if nick.lower() == self.nick.lower(): pass
-                else:
-                    self.p('JOIN', nick=nick, chan=m[2])
+                else: self.p('JOIN', nick=nick, chan=m[2])
             elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
-                else: 
+                else:
                     chan = m[2].split(':')[0]
                     self.p('PART', nick=nick, chan=chan, msg="")
             elif m[1] == "PRIVMSG":
@@ -111,7 +116,7 @@ class Worker(object):
                 self.p('KICK', chan=chan, msg=msg, kicked=kicked, nick=nick, host=host, us=us)
             elif m[1] == 'MODE':
                 m = msg.split(' ', 4)
-                if len(m) == 4: 
+                if len(m) == 4:
                     self.p('MODEC', chan=m[2], mode=m[3], nick=nick, host=host)
                 elif len(m) == 5:
                     self.p('MODEU', target=m[4], chan=m[2], mode=m[3], nick=nick, host=host)
@@ -139,7 +144,7 @@ class Worker(object):
         if not chan.startswith('#'): chan = "#"+chan
         if chan not in self.channels: return
         self.channels.remove(chan)
-        self.write('PART %s :%s' % (chan, msg))  
+        self.write('PART %s :%s' % (chan, msg))
 
     def redloop(self):
         print 'Looping redis'
@@ -147,12 +152,12 @@ class Worker(object):
             c, q = self.red.blpop(self.getChanReads('i.%s.worker.%s' % (self.nid, self.id)))
             try: q = json.loads(q)
             except:
-                print "Bad message: %s" % msg
+                print "Bad message: %s" % q
                 continue
             if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
             elif q['tag'] == 'JOIN': self.join(q['chan'], q['pw'])
             elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
-            elif q['tag'] == "PING": 
+            elif q['tag'] == "PING":
                 self.pinged = True
                 self.push('PONG')
             elif q['tag'] == 'RAW':
@@ -161,7 +166,7 @@ class Worker(object):
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
                 if q['nick'] not in self.whois.keys():
-                    self.whois[q['nick'].lower()] = {'chank':q['chan']}
+                    self.whois[q['nick'].lower()] = {'chank': q['chan']}
                     self.write('WHOIS %s' % (q['nick']))
             elif q['tag'] == 'ID':
                 print 'Recovering from master failure!'
@@ -197,7 +202,7 @@ class Worker(object):
 
     def quit(self, reason="Bot is leaving..."):
         print 'Bot is quitting!'
-        if self.c.alive: 
+        if self.c.alive:
             self.write('QUIT :%s' % reason)
             self.c.disconnect()
         self.push('BYE')
