@@ -50,7 +50,7 @@ class Worker(object):
     def parse(self, msg):
         m = msg.split(' ', 2)
         if m[0] == "PING":
-            print 'Pinged: %d' (time.time()-self.lastPong)
+            print 'Pinged: %d' % (time.time()-self.lastPong)
             self.lastPong = time.time()
             return self.c.write('PONG')
         print msg
