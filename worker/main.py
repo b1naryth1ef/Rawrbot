@@ -40,7 +40,7 @@ class Worker(object):
                 self.quit("Keyboard Interrupt (killed)")
                 sys.exit()
             except:
-                self.quit()
+                self.quit('Exception running!')
 
     def checkForPing(self):
         while self.active:
@@ -198,6 +198,7 @@ class Worker(object):
         self.push('READY')
         thread.start_new_thread(self.checkForPing, ())
         self.ready = True
+        self.lastPong = time.time()
         for i in self.readyq:
             i = self.readyq.popleft()
             self.c.write(*i[0], **i[1])
@@ -209,7 +210,7 @@ class Worker(object):
                 if i: thread.start_new_thread(self.parse, (i,)) #Not really required, but helps safe-handeling functions (for now)
 
     def quit(self, reason="Bot is leaving..."):
-        print 'Bot is quitting!'
+        print 'Bot is quitting! (%s)' % reason
         if self.c.alive:
             self.write('QUIT :%s' % reason)
             self.c.disconnect()
