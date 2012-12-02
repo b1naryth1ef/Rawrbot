@@ -206,7 +206,7 @@ class Worker(object):
         while self.active and self.c.alive:
             l = self.c.read()
             for i in l.split('\r\n'):
-                if i: thread.start_new_thread(self.parse, (i)) #Not really required, but helps safe-handeling functions (for now)
+                if i: thread.start_new_thread(self.parse, (i,)) #Not really required, but helps safe-handeling functions (for now)
 
     def quit(self, reason="Bot is leaving..."):
         print 'Bot is quitting!'
