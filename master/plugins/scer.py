@@ -44,7 +44,7 @@ def coreLoop():
             print 'Could not grab Justin.tv API for %s' % chan['id']
             continue
         if len(r):
-            msg = '%S IS LIVE NOW: %s' % (chan['name'].upper(), r[0]['title'])
+            msg = '%s IS LIVE NOW: %s' % (chan['name'].upper(), r[0]['title'])
             spams = []
             A.red.set('i.p.scer.%s.live' % chan['id'], 1)
             if config.spam:
