@@ -86,11 +86,12 @@ class Worker(object):
     def getReady(self):
         time.sleep(20)
         if not self.ready:
-            print 'Worker going down for not getting ready in time!'
-            self.quit()
+            print 'Worker %s going down for not getting ready in time!' % self.id
+            self.quit('Didnt get ready in time')
 
     def parse(self, msg):
         if msg['tag'] == 'READY':
+            print "Worker %s is now ready!" % self.id
             self.ready = True
             self.net.setupWorker(self.id)
         elif msg['tag'] == 'PONG':

@@ -41,6 +41,7 @@ class Worker(object):
                 sys.exit()
             except:
                 self.quit('Exception running!')
+                time.sleep(30) #buffer reconnects
 
     def checkForPing(self):
         while self.active:
