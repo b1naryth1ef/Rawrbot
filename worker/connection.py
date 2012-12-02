@@ -1,5 +1,4 @@
-import sys, os, time
-import socket
+import time, socket
 
 DEBUG = False
 
@@ -47,10 +46,12 @@ class Connection():
         self.c.close()
         self.alive = False
 
-    def read(self, bytes=4080): 
+    def read(self, bytes=4080):
         data = unicode(self.c.recv(bytes), errors="replace")
         if DEBUG: print data
         if data: return data
+        else:
+            print "Are we disconnected? Or is b1n a fail?"
         return None
 
     def write(self, content):

@@ -2,39 +2,42 @@ from connection import Connection
 from collections import deque
 import redis, json
 import random, thread
-import sys, os, time
+import sys, time
 
 class Worker(object):
     def __init__(self):
         self.id = -1
         self.nid = -1
         self.nick = ""
+        self.ready = False
+        self.keepAlive = True
+        self.readyq = deque()
         self.channels = []
+
+        #Queued Responses
         self.whois = {}
+        self.nickq = {}
+
+        #Server Info
         self.auth = ""
         self.server = ""
-        self.ready = False
-        self.readyq = deque()
-        self.lastwrite = 0
-        self.pinged = False
 
-        #Server Pong Tracking
+        #Pong Tracking
         self.lastPong = 0
+        self.pinged = False
 
         self.red = redis.Redis(host="hydr0.com", password="")
         self.sub = self.red.pubsub()
 
-        self.nickq = {}
-
-        try:
-            self.boot()
-            self.active = True
-
-            self.connect()
-            thread.start_new_thread(self.ircloop, ())
-            self.redloop()
-        except:
-            self.quit()
+        while self.keepAlive:
+            print 'Starting Loop!'
+            try:
+                self.boot()
+                self.connect()
+                thread.start_new_thread(self.ircloop, ())
+                self.redloop()
+            except:
+                self.quit()
 
     def checkForPing(self):
         while self.active:
@@ -42,15 +45,18 @@ class Worker(object):
             time.sleep(60)
             if not self.pinged:
                 print "Master has not pinged us, going down!"
+                self.keepAlive = False
                 self.quit("Master ping-out")
+            if time.time()-self.lastPong > 250:
+                print "The server hasnt pinged us in a while, it seems we're disconnected!"
+                self.quit("IRC Server Ping Out")
 
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
 
-    def parse(self, msg):
+    def parse(self, msg): #@TODO Clean this up
         m = msg.split(' ', 2)
         if m[0] == "PING":
-            print 'Pinged: %d' % (time.time()-self.lastPong)
             self.lastPong = time.time()
             return self.c.write('PONG')
         print msg
@@ -197,8 +203,7 @@ class Worker(object):
         while self.active and self.c.alive:
             l = self.c.read()
             for i in l.split('\r\n'):
-                if i: self.parse(i)
-                #else: print "Did we get disconnected from irc?"
+                if i: thread.start_new_thread(self.parse, (i)) #Not really required, but helps safe-handeling functions (for now)
 
     def quit(self, reason="Bot is leaving..."):
         print 'Bot is quitting!'
@@ -207,7 +212,6 @@ class Worker(object):
             self.c.disconnect()
         self.push('BYE')
         self.active = False
-        sys.exit()
 
     def boot(self):
         print 'Attempting to boot worker!'
@@ -221,6 +225,7 @@ class Worker(object):
                     print msg
                     continue
                 self.__dict__.update(obj) #@TODO Fix this
+                self.active = True
                 print 'Got worker info:', obj
                 break
             break

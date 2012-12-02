@@ -5,7 +5,7 @@ from data import ConfigFile
 import api
 
 default_cfg = {
-    'networks':[
+    'networks': [
         {
             'host':'irc.quakenet.org',
             'chans':['b1naryth1ef', 'rawrbot', ['rawrbot.admins', 'l33t']],
@@ -21,7 +21,7 @@ default_cfg = {
             'plugins':['core']
         }
     ],
-    'plugins':['util']
+    'plugins': ['util']
 }
 
 rand = lambda: random.randint(11111, 99999)
@@ -48,11 +48,11 @@ class Worker(object):
     def setup(self, reply):
         red.set('i.%s.worker.uptime', time.time())
         red.publish(reply, json.dumps({
-                'id':self.id,
-                'nid':self.nid,
-                'server':self.net.name,
-                'auth':self.net.auth,
-                'nick':self.nick
+                'id': self.id,
+                'nid': self.nid,
+                'server': self.net.name,
+                'auth': self.net.auth,
+                'nick': self.nick
             }))
         thread.start_new_thread(self.getReady, ())
 
@@ -123,7 +123,7 @@ class Network(object):
 
     def getNumWorkers(self):
         return len([i for i in self.workers.values() if i != None])
-                
+
     def boot(self):
         red.delete('i.%s.chans' % self.id)
         red.delete('i.%s.workers' % self.id)
@@ -138,7 +138,7 @@ class Network(object):
 
     def write(self, chan, msg):
         if chan in self.channels.keys():
-            k = {'tag':'MSG', 'msg':msg}
+            k = {'tag': 'MSG', 'msg': msg}
             red.rpush('i.%s.chan.%s' % (self.id, self.chan), json.dumps(k))
 
     def joinChannel(self, chan):
@@ -202,7 +202,7 @@ class Network(object):
                     self.channels[i].part(i, 'Bot Swapping...')
                     w.join(i)
 
-    def rmvWorker(self, wid): #@TODO Reallocate channels?    
+    def rmvWorker(self, wid):
         red.srem('i.%s.workers' % self.id, wid)
         del self.workers[wid]
         self.workers[wid] = None
@@ -341,7 +341,7 @@ class Master(object):
         while self.isMaster and self.active:
             for msg in self.sub.listen():
                 try: msg = json.loads(msg['data'])
-                except: 
+                except:
                     print '>>>', msg
                     continue
                 if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
