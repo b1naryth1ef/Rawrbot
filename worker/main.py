@@ -36,6 +36,9 @@ class Worker(object):
                 self.connect()
                 thread.start_new_thread(self.ircloop, ())
                 self.redloop()
+            except KeyboardInterrupt:
+                self.quit("Keyboard Interrupt (killed)")
+                sys.exit()
             except:
                 self.quit()
 
