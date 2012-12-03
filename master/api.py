@@ -166,17 +166,18 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
+        a = self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower())
+        if a: return True, True
         if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
             if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.chan.%s' % (data['nid'], data['dest']), json.dumps(m))
                 time.sleep(5)
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
-        a = self.red.sismember('i.%s.admins' % (data['nid']), v)
-        b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
-        c = self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower())
-        if a or c: return True, True
-        if b: return True, False
+        b = self.red.sismember('i.%s.admins' % (data['nid']), v)
+        c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
+        if b: return True, True
+        if c: return True, False
         return False, False
 
     def isOp(self, net, chan, nick):

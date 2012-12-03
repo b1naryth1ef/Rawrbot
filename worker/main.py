@@ -107,6 +107,7 @@ class Worker(object):
                     self.whois[nick.lower()]['auth'] = authname.lower()
             elif m[1] == '318': #END OF WHOIS
                 m = msg.split(' ')
+                print m
                 if m[3].lower() in self.whois.keys():
                     self.p('WHOIS', **self.whois[m[3].lower()])
                     del self.whois[m[3].lower()]
