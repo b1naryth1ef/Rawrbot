@@ -172,6 +172,7 @@ class API(object):
         c = self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower())
         if a or c: return True, True
         if b: return True, False
+        return False, False
 
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
