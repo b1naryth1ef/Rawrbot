@@ -31,17 +31,17 @@ class Worker(object):
 
         while self.keepAlive:
             print 'Starting Loop!'
-            try:
+            if 1==1:
                 self.boot()
                 self.connect()
                 thread.start_new_thread(self.ircloop, ())
                 self.redloop()
-            except KeyboardInterrupt:
-                self.quit("Keyboard Interrupt (killed)")
-                sys.exit()
-            except:
-                self.quit('Exception running!')
-                time.sleep(30) #buffer reconnects
+            #except KeyboardInterrupt:
+            #    self.quit("Keyboard Interrupt (killed)")
+            #    sys.exit()
+            #except:
+                #self.quit('Exception running!')
+                #time.sleep(30) #buffer reconnects
 
     def checkForPing(self):
         while self.active:
