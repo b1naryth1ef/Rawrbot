@@ -228,7 +228,7 @@ class API(object):
             if _v and not int(_v): return
             last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
             if last and time.time()-float(last) < 5: return #Prevent spamming
-            msg = 'No such command "%s"!' % obj._cmd
+            msg = 'No such command "%s"!' % m[0][1:]
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
