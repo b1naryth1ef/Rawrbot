@@ -100,8 +100,9 @@ class Parser(object):
             i = {'tag': 'PART', 'chan': q['chan'], 'msg': 'Bant...', 'nid': q['nid']}
             self.red.publish('irc.master', json.dumps(i))
         elif q['tag'] == 'WHOIS':
-            print 'User %s was authed as %s' % (q['nick'], q['auth'])
-            self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
+            if q.get('nick') and q.get('auth'):
+                print 'User %s was authed as %s' % (q['nick'], q['auth'])
+                self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')
