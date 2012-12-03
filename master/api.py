@@ -166,20 +166,17 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
-        print 'Admin check: %s' % data
-        print self.red.keys('i.%s.user.%s.*' % (data['nid'], data['nick'].lower()))
+        print 'Admin check: %s' % data['nick']
         if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
             return True, True
         if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
             if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
-                print 'Sending whois for %s' % data['nick']
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 time.sleep(5)
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())).lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
-        print v, b, c
         if b: return True, True
         if c: return True, False
         return False, False
@@ -208,7 +205,8 @@ class API(object):
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
             if obj._cmd['admin'] is True:
-                if not self.isAdmin(data):
+                obj.admin, obj.globaladmin = self.isAdmin(data)
+                if obj.admin:
                     msg = "You must be an admin to use that command!"
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
