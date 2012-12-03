@@ -174,7 +174,8 @@ class API(object):
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 time.sleep(5)
-        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())).lower()
+        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
+        if v: v = v.lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
         if b: return True, True
