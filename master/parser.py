@@ -22,6 +22,7 @@ class Parser(object):
                 self.red.srem('i.%s.chan.%s.ops' % (q['nid'], i), q['nick'].lower())
         self.red.delete('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
         self.red.delete('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()))
+        self.red.delete('i.%s.user.%s.whoisd' % (q['nid'], q['nick'].lower()))
 
     def userLeave(self, q):
         self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
@@ -101,9 +102,11 @@ class Parser(object):
             i = {'tag': 'PART', 'chan': q['chan'], 'msg': 'Bant...', 'nid': q['nid']}
             self.red.publish('irc.master', json.dumps(i))
         elif q['tag'] == 'WHOIS':
-            if q.get('nick') and q.get('auth'):
-                print 'User %s was authed as %s' % (q['nick'], q['auth'])
-                self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
+            if q.get('nick'):
+                if q.get('auth'):
+                    print 'User %s was authed as %s' % (q['nick'], q['auth'])
+                    self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
+                self.red.set('i.%s.user.%s.whoisd' % (q['nid'], q['nick'].lower()), 1)
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')

@@ -60,12 +60,12 @@ class Worker(object):
 
     def sendNames(self, chan, names):
         self.p('NAMES', chan=chan, nicks=names)
-        if len(names) > 30: tt = 1
-        else: tt = .5
-        for i in names:
-            if i[0] in ['@', '+', '&', '~']: i = i[1:]
-            time.sleep(tt) #prolly not required
-            self.getWhois(i)
+        # if len(names) > 30: tt = 1
+        # else: tt = .5
+        # for i in names:
+        #     if i[0] in ['@', '+', '&', '~']: i = i[1:]
+        #     time.sleep(tt) #prolly not required
+        #     self.getWhois(i)
 
     def parse(self, msg): #@TODO Clean this up
         m = msg.split(' ', 2)
@@ -195,10 +195,8 @@ class Worker(object):
                 self.write(q['msg'])
             elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
-            # elif q['tag'] == 'WHOIS':
-            #     if q['nick'] not in self.whois.keys():
-            #         self.whois[q['nick'].lower()] = {'chank': q['chan']}
-            #         self.write('WHOIS %s' % (q['nick']))
+            elif q['tag'] == 'WHOIS':
+                getWhois(q['nick'].lower())
             elif q['tag'] == 'ID':
                 print 'Recovering from master failure!'
                 for i in self.channels:

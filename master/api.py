@@ -166,6 +166,11 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
+        if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
+            if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
+                m = {'tag': 'WHOIS', 'nick': data['nick']}
+                self.red.rpush('i.%s.chan.%s' % (data['nid'], data['dest']), json.dumps(m))
+                time.sleep(5)
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
         a = self.red.sismember('i.%s.admins' % (data['nid']), v)
         b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
@@ -185,7 +190,7 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        obj.admin, obj.globaladmin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
+        #obj.admin, obj.globaladmin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
@@ -197,11 +202,14 @@ class API(object):
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
-            if obj._cmd['admin'] is True and not obj.admin:
-                msg = "You must be an admin to use that command!"
-                if obj.pm: self.writeUser(data, data['nick'], msg)
-                else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                return
+            if obj._cmd['admin'] is True:
+                if not self.isAdmin(data):
+                    msg = "You must be an admin to use that command!"
+                    if obj.pm: self.writeUser(data, data['nick'], msg)
+                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+                    return
+                else:
+                    obj.admin = True
             if obj._cmd['op'] and not obj.isOp:
                 msg = "You must be an op to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
