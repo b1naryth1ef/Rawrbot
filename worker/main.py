@@ -60,9 +60,11 @@ class Worker(object):
 
     def sendNames(self, chan, names):
         self.p('NAMES', chan=chan, nicks=names)
+        if len(names) > 30: tt = 1
+        else: tt = .5
         for i in names:
             if i[0] in ['@', '+', '&', '~']: i = i[1:]
-            time.sleep(.3) #prolly not required
+            time.sleep(tt) #prolly not required
             self.getWhois(i)
 
     def parse(self, msg): #@TODO Clean this up
