@@ -58,6 +58,11 @@ class Worker(object):
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
 
+    def sendNames(self, chan, names):
+        self.p('NAMES', chan=chan, nicks=names)
+        for i in names:
+            self.getWhois(i)
+
     def parse(self, msg): #@TODO Clean this up
         m = msg.split(' ', 2)
         if m[0] == "PING":
@@ -70,15 +75,16 @@ class Worker(object):
                 chan = m[2]
                 nicks = m[3][1:].split(' ')
                 if chan not in self.nickq.keys(): self.nickq[chan] = nicks
-                else: self.nickq[chan] += nicks
+                else:
+                    if self.nickq[chan] == 0: #This gets around stupid packet shuffling
+                        self.sendNames(chan, nicks)
+                    else: self.nickq[chan] += nicks
             elif m[1] == "366": #END OF NAMES
                 m = m[2].split(' ', 2)
                 if m[1] not in self.nickq.keys():
-                    print self.nickq
+                    self.nickq[m[1]] = 0
                     return
-                self.p('NAMES', chan=m[1], nicks=self.nickq[m[1]])
-                for i in self.nickq[m[1]]:
-                    self.getWhois(i)
+                self.sendNames(m[1], self.nickq[m[1]])
             elif m[1] == "332": #TOPIC
                 m = msg.split(' ')
                 self.p('TOPIC', chan=m[3], topic=m[-1][1:])
