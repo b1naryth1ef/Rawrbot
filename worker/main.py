@@ -74,6 +74,8 @@ class Worker(object):
             elif m[1] == "366": #END OF NAMES
                 m = m[2].split(' ', 2)
                 self.p('NAMES', chan=m[1], nicks=self.nickq[m[1]])
+                for i in self.nickq[m[1]]:
+                    self.getWhois(i)
             elif m[1] == "332": #TOPIC
                 m = msg.split(' ')
                 self.p('TOPIC', chan=m[3], topic=m[-1][1:])
@@ -93,7 +95,7 @@ class Worker(object):
             elif m[1] == '318': #END OF WHOIS
                 m = msg.split(' ')
                 if m[3].lower() in self.whois.keys():
-                    self.p('WHOIS', json.dumps(self.whois[m[3].lower()]))
+                    self.p('WHOIS', **self.whois[m[3].lower()])
                     del self.whois[m[3].lower()]
             elif m[1] == '474':
                 m = msg.split('', 4)
