@@ -166,6 +166,8 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
+        print self.red.keys('i.%s.user.*.auth' % data['nid'])
+        print data
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
         a = self.red.sismember('i.%s.admins' % (data['nid']), v)
         b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)

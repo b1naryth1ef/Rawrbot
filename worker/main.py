@@ -62,7 +62,7 @@ class Worker(object):
         self.p('NAMES', chan=chan, nicks=names)
         for i in names:
             if i[0] in ['@', '+', '&', '~']: i = i[1:]
-            time.sleep(.2) #prolly not required
+            #time.sleep(.2) #prolly not required
             self.getWhois(i)
 
     def parse(self, msg): #@TODO Clean this up
