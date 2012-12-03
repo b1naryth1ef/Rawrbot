@@ -166,12 +166,12 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
-        print self.red.keys('i.%s.user.*.auth' % data['nid'])
-        print data
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
         a = self.red.sismember('i.%s.admins' % (data['nid']), v)
         b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
-        return a or b
+        c = self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower())
+        if a or c: return True, True
+        if b: return True, False
 
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
@@ -184,7 +184,7 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        obj.admin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
+        obj.admin, obj.globaladmin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False

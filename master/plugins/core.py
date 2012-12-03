@@ -15,6 +15,33 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
+@P.cmd('addadmin', usage="{cmd} name chan=#mychan", admin=True, kwargs=True)
+def addAdmin(obj):
+    if len(obj.m) < 2: obj.usage()
+    if obj.kwargs.get('chan'):
+        s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
+    else:
+        s = 'i.%s.admins' % obj.nid
+    if A.red.sismember(s, obj.m[1]):
+        return obj.reply('That user is already an admin!')
+    else:
+        A.red.sadd(s, obj.m[1])
+        if obj.kwargs.get('chan'):
+            obj.reply('Added %s as a admin for %s!' % (obj.m[1], obj.kwargs.get('chan')))
+        else:
+            obj.reply('Added %s as a global admin!' % obj.m[1])
+
+@P.cmd('rmvadmin', usage="{cmd} name chan=#mychan", admin=True, kwargs=True)
+def rmvAdmin(obj):
+    if len(obj.m) < 2: obj.usage()
+    if obj.kwargs.get('chan'): s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
+    else: s = 'i.%s.admins' % obj.nid
+    if A.red.sismember(s, obj.m[1]):
+        A.red.srem(s, obj.m[1])
+        return obj.reply('Removed %s as an admin!' % obj.m[1])
+    else:
+        return obj.reply('User %s is not an admin!' % obj.m[1])
+
 @P.cmd('hit')
 def cmdHit(obj):
     return obj.reply("YOU WIN! (Yeah still not implemented...)")
@@ -27,7 +54,7 @@ def cmdDerp(obj):
     elif obj.m[1] == 'ictere': return obj.reply("The laws of physics make your statement incorrect.")
     elif obj.m[1] == 'scuba': return obj.reply('ROBOTS!')
     elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
-    
+
 @P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", admin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
     obj.reply('Pulling update from git...')
