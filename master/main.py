@@ -130,6 +130,9 @@ class Network(object):
         red.delete('i.%s.workers' % self.id)
         for chan in self.channels.keys():
             red.delete('i.%s.chan.%s.users' % (self.id, chan))
+        for key in red.keys('i.%s.user.*' % self.id):
+            print "Deleting key '%s'" % key
+            red.delete(key)
         red.set('i.%s.nickkey' % self.id, self.nickkey)
         red.sadd('i.%s.chans' % self.id, *self.channels)
 

@@ -28,6 +28,8 @@ class Parser(object):
         self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
         self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower()) #@NOTE We dont care if this works/doesnt
         self.red.srem('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
+        if not self.red.scard('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan']):
+            self.rmvUser(q)
 
     def parse(self, q): #@TODO Cleanup this hole fucking thing please
         if 'chan' in q:
@@ -102,13 +104,13 @@ class Parser(object):
             i = {'tag': 'PART', 'chan': q['chan'], 'msg': 'Bant...', 'nid': q['nid']}
             self.red.publish('irc.master', json.dumps(i))
         elif q['tag'] == 'WHOIS':
-            print q
             if q.get('nick'):
-                print q.get('nick')
+                print "User %s has been successfully whois'd!" % q.get('nick')
+                self.red.set('i.%s.user.%s.whoisd' % (q['nid'], q['nick'].lower()), 1)
                 if q.get('auth'):
                     print 'User %s was authed as %s' % (q['nick'], q['auth'])
                     self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
-                self.red.set('i.%s.user.%s.whoisd' % (q['nid'], q['nick'].lower()), 1)
+
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')
