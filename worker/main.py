@@ -197,6 +197,7 @@ class Worker(object):
             elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
+                print 'WHOIS::: %s' % q['nick']
                 getWhois(q['nick'].lower())
             elif q['tag'] == 'ID':
                 print 'Recovering from master failure!'
