@@ -89,12 +89,11 @@ class Worker(object):
                 nick = m[3]
                 authname = m[4]
                 if nick.lower() in self.whois.keys():
-                    self.whois[nick.lower()]['auth'] = authname
+                    self.whois[nick.lower()]['auth'] = authname.lower()
             elif m[1] == '318': #END OF WHOIS
                 m = msg.split(' ')
                 if m[3].lower() in self.whois.keys():
-                    print 'Got end of whois, sending...'
-                    self.red.lpush(self.whois[m[3].lower()]['chank'], json.dumps(self.whois[m[3].lower()]))
+                    self.p('WHOIS', json.dumps(self.whois[m[3].lower()]))
                     del self.whois[m[3].lower()]
             elif m[1] == '474':
                 m = msg.split('', 4)
@@ -106,6 +105,7 @@ class Worker(object):
             if m[1] == "JOIN":
                 if nick.lower() == self.nick.lower(): pass
                 else: self.p('JOIN', nick=nick, chan=m[2])
+                self.getWhois(nick)
             elif m[1] == "PART": #@TODO add msg parsing
                 if nick.lower() == self.nick.lower(): pass
                 else:
@@ -156,6 +156,12 @@ class Worker(object):
         self.channels.remove(chan)
         self.write('PART %s :%s' % (chan, msg))
 
+    def getWhois(self, nick):
+        nick = nick.lower()
+        if nick not in self.whois.keys():
+            self.whois[nick] = {}
+            self.write('WHOIS %s' % (nick))
+
     def redloop(self):
         print 'Looping redis'
         while self.active:
@@ -174,10 +180,10 @@ class Worker(object):
                 self.write(q['msg'])
             elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
-            elif q['tag'] == 'WHOIS':
-                if q['nick'] not in self.whois.keys():
-                    self.whois[q['nick'].lower()] = {'chank': q['chan']}
-                    self.write('WHOIS %s' % (q['nick']))
+            # elif q['tag'] == 'WHOIS':
+            #     if q['nick'] not in self.whois.keys():
+            #         self.whois[q['nick'].lower()] = {'chank': q['chan']}
+            #         self.write('WHOIS %s' % (q['nick']))
             elif q['tag'] == 'ID':
                 print 'Recovering from master failure!'
                 for i in self.channels:

@@ -1,7 +1,6 @@
 import re, thread, json
 import sys, os, time
-import random, __builtin__
-from threading import Thread
+import random
 
 class LooopingThread():
     def __init__(self, func=None, delay=30):
@@ -46,19 +45,19 @@ class FiredCommand(FiredEvent):
     def smu(self, msg): self.send(self.dest, msg)
 
     def usage(self):
-        i = self._cmd['usage'].format(**{'cmd':self._name, 'bool':'true/false|on/off|1/0'})
+        i = self._cmd['usage'].format(**{'cmd': self._name, 'bool': 'true/false|on/off|1/0'})
         self.reply('Usage: '+self._prefix+i)
 
     def privmsg(self, user, msg):
-        k = {'tag':'PM', 'msg':msg, 'nick':user}
+        k = {'tag': 'PM', 'msg': msg, 'nick': user}
         self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
     def send(self, chan, msg): #@TODO Check if valid channel?
-        k = {'tag':'MSG', 'chan':chan.replace('#', ''), 'msg':msg}
+        k = {'tag': 'MSG', 'chan': chan.replace('#', ''), 'msg': msg}
         self._api.red.rpush('i.%s.chan.%s' % (self.nid, k['chan']), json.dumps(k))
 
     def raw(self, msg):
-        k = {'tag':'RAW', 'msg':msg}
+        k = {'tag': 'RAW', 'msg': msg}
         self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
 class Plugin():
@@ -88,7 +87,7 @@ class Plugin():
         def deco(func):
             func.loop = LooopingThread(func=func, delay=delay)
             self.api.loops.append(func.loop)
-            return func.loop            
+            return func.loop
         return deco
 
     def cmd(self, name, **kwargs): #@TYPE Decorator
@@ -154,21 +153,23 @@ class API(object):
 
     def write(self, net, chan, msg):
         msg = {
-            'tag':'MSG',
-            'chan':chan.replace('#', ''),
-            'msg':msg}
+            'tag': 'MSG',
+            'chan': chan.replace('#', ''),
+            'msg': msg}
         self.red.rpush('i.%s.chan.%s' % (net, msg['chan']), json.dumps(msg))
 
     def writeUser(self, m, user, msg):
         msg = {
-            'tag':'PM',
-            'nick':user,
-            'msg':msg}
+            'tag': 'PM',
+            'nick': user,
+            'msg': msg}
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
-    def isAdmin(self, net, host): 
-        host = host.split('@')[-1].strip()
-        return self.red.sismember('i.%s.admins' % (net), host)
+    def isAdmin(self, data):
+        v = self.red.get('i.%s.user.%s.auth')
+        a = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['chan']), v)
+        b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['chan']), v)
+        return a or b
 
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
@@ -181,14 +182,14 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        obj.admin = self.isAdmin(data['nid'], data['host'])
+        obj.admin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
             if self.maintence and not obj.admin: return #Dont even reply
             if len(self.master.networks[data['nid']].plugins):
-                if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins: 
+                if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins:
                     msg = "That command is not enabled here!"
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
@@ -208,24 +209,24 @@ class API(object):
                 for i in obj._cmd['kbool']:
                     if i in obj.kwargs:
                         kb = obj.kwargs[i]
-                        if kb.isdigit() and int(kb) in [0, 1]: 
+                        if kb.isdigit() and int(kb) in [0, 1]:
                             obj.kwargs[i] = bool(int(kb))
                         elif kb.lower() in ['y', 'n', 'true', 'false', 'on', 'off']:
-                            obj.kwargs[i] = {'y':True, 'n':False, 'true':True, 'false':False, 'on':True, 'off':False}[kb.lower()]
+                            obj.kwargs[i] = {'y': True, 'n': False, 'true': True, 'false': False, 'on': True, 'off': False}[kb.lower()]
                         else:
                             msg = 'Kwarg %s must be y/n, true/false, on/off 1/0!' % i
                             if obj.pm: self.writeUser(data, data['nick'], msg)
                             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                             return
             thread.start_new_thread(obj._cmd['f'], (obj,))
-            del obj #Cleanup (do we need to do this? maybe not...)
+            #del obj #Cleanup (do we need to do this? maybe not...)
             return True
         else:
             _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
             if _v and not int(_v): return
             last = self.red.get('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()))
             if last and time.time()-float(last) < 5: return #Prevent spamming
-            msg = 'No such command "%s"!' % obj._name
+            msg = 'No such command "%s"!' % obj._cmd
             if obj.pm: self.writeUser(data, data['nick'], msg)
             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
@@ -235,17 +236,17 @@ class API(object):
        # print 'Adding %s' % name
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
-            'plug':plugin,
-            'f':func,
-            'admin':admin,
-            'kwargs':kwargs,
-            'kbool':kbool,
-            'usage':usage,
-            'alias':alias,
-            'desc':desc,
-            'op':op,
-            'nolist':nolist,
-            'always':always,
+            'plug': plugin,
+            'f': func,
+            'admin': admin,
+            'kwargs': kwargs,
+            'kbool': kbool,
+            'usage': usage,
+            'alias': alias,
+            'desc': desc,
+            'op': op,
+            'nolist': nolist,
+            'always': always,
         }
 
         for i in alias:

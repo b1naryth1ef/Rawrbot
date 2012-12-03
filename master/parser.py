@@ -8,6 +8,9 @@ class Parser(object):
         self.A.master = master
         self.A.loadPlugins()
 
+        for i in self.red.keys('i.*.user.*.auth'):
+            self.red.delete(i)
+
     def takeMaster(self):
         self.A.canLoop = True
         self.A.loadLoops()
@@ -18,6 +21,7 @@ class Parser(object):
             if self.red.sismember('i.%s.chan.%s.ops' % (q['nid'], i), q['nick'].lower()):
                 self.red.srem('i.%s.chan.%s.ops' % (q['nid'], i), q['nick'].lower())
         self.red.delete('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()))
+        self.red.delete('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()))
 
     def userLeave(self, q):
         self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
@@ -28,7 +32,7 @@ class Parser(object):
         if 'chan' in q:
             q['chan'] = q['chan'].replace('#', '').lower()
         if q['tag'] == "MSG":
-            if q['msg'].startswith(self.A.prefix) and len(q['msg']) > 1 and q['msg'][1] != ' ': 
+            if q['msg'].startswith(self.A.prefix) and len(q['msg']) > 1 and q['msg'][1] != ' ':
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', **q)
         elif q['tag'] == 'NAMES': #@TODO Cleanup
@@ -59,7 +63,7 @@ class Parser(object):
             q['kicked'] = q['kicked'].lower()
             q['nick'] = q['nick'].lower()
             if q['us']:
-                m = {'tag':'JOIN', 'chan':q['chan'], 'pw':self.red.get('i.%s.chan.%s.pw' % (q['nid'], q['chan']))}
+                m = {'tag': 'JOIN', 'chan': q['chan'], 'pw': self.red.get('i.%s.chan.%s.pw' % (q['nid'], q['chan']))}
                 self.red.rpush('i.%s.worker.%s' % (q['nid'], q['id']), json.dumps(m))
                 return self.A.fireEvent('KICK_W', **q)
             self.userLeave(q)
@@ -93,8 +97,11 @@ class Parser(object):
             self.rmvUser(q)
         elif q['tag'] == 'BANNED':
             self.A.fireEvent('BAN_W', **q)
-            i = {'tag':'PART', 'chan':q['chan'], 'msg':'Bant...', 'nid':obj.nid}
+            i = {'tag': 'PART', 'chan': q['chan'], 'msg': 'Bant...', 'nid': q['nid']}
             self.red.publish('irc.master', json.dumps(i))
+        elif q['tag'] == 'WHOIS':
+            print 'User %s was authed as %s' % (q['nick'], q['auth'])
+            self.red.set('i.%s.user.%s.auth' % (q['nid'], q['nick'].lower()), q['auth'])
     def parseLoop(self):
         while True:
             c, q = self.red.blpop('i.parseq')
