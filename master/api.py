@@ -174,7 +174,7 @@ class API(object):
                 print 'Sending whois for %s' % data['nick']
                 print self.red.keys('i.%s.user.%s.*' % (data['nid'], data['nick'].lower()))
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
-                self.red.rpush('i.%s.worker.%s' % (data['nid'], data['wid']), json.dumps(m))
+                self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 time.sleep(5)
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())).lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
