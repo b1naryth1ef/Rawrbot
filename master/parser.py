@@ -28,7 +28,7 @@ class Parser(object):
         self.red.srem('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
         self.red.srem('i.%s.chan.%s.ops' % (q['nid'], q['chan']), q['nick'].lower()) #@NOTE We dont care if this works/doesnt
         self.red.srem('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
-        if not self.red.scard('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan']):
+        if not self.red.scard('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower())):
             self.rmvUser(q)
 
     def parse(self, q): #@TODO Cleanup this hole fucking thing please

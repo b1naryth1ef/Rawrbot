@@ -206,9 +206,8 @@ class API(object):
                     return
             if obj._cmd['admin'] is True:
                 v = self.isAdmin(data)
-                print v
                 obj.admin, obj.globaladmin = v
-                if obj.admin:
+                if not obj.admin:
                     msg = "You must be an admin to use that command!"
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
