@@ -73,6 +73,9 @@ class Worker(object):
                 else: self.nickq[chan] += nicks
             elif m[1] == "366": #END OF NAMES
                 m = m[2].split(' ', 2)
+                if m[1] not in self.nickq.keys():
+                    print self.nickq
+                    return
                 self.p('NAMES', chan=m[1], nicks=self.nickq[m[1]])
                 for i in self.nickq[m[1]]:
                     self.getWhois(i)
