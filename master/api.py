@@ -167,18 +167,19 @@ class API(object):
 
     def isAdmin(self, data):
         print 'Admin check: %s' % data
-        #a = self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower())
-        #if a: return True, True
+        print self.red.keys('i.%s.user.%s.*' % (data['nid'], data['nick'].lower()))
+        if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
+            return True, True
         if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
             if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
                 print 'Sending whois for %s' % data['nick']
-                print self.red.keys('i.%s.user.%s.*' % (data['nid'], data['nick'].lower()))
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 time.sleep(5)
         v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())).lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
+        print v, b, c
         if b: return True, True
         if c: return True, False
         return False, False

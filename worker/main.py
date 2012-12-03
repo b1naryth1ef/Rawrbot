@@ -27,21 +27,21 @@ class Worker(object):
         self.pinged = False
 
         self.red = redis.Redis(host="hydr0.com", password="")
-        self.sub = self.red.pubsub()
 
         while self.keepAlive:
             print 'Starting Loop!'
-            if 1==1:
+            try:
+                self.sub = self.red.pubsub()
                 self.boot()
                 self.connect()
                 thread.start_new_thread(self.ircloop, ())
                 self.redloop()
-            #except KeyboardInterrupt:
-            #    self.quit("Keyboard Interrupt (killed)")
-            #    sys.exit()
-            #except:
-                #self.quit('Exception running!')
-                #time.sleep(30) #buffer reconnects
+            except KeyboardInterrupt:
+                self.quit("Keyboard Interrupt (killed)")
+                sys.exit()
+            except Exception, e:
+                self.quit('Exception running! (%s)' % e)
+                time.sleep(30) #buffer reconnects
 
     def checkForPing(self):
         while self.active:
@@ -51,9 +51,9 @@ class Worker(object):
                 print "Master has not pinged us, going down!"
                 self.keepAlive = False
                 self.quit("Master ping-out")
-            if time.time()-self.lastPong > 250:
-                print "The server hasnt pinged us in a while, it seems we're disconnected!"
-                self.quit("IRC Server Ping Out")
+            #if time.time()-self.lastPong > 250:
+            #    print "The server hasnt pinged us in a while, it seems we're disconnected!"
+            #    self.quit("IRC Server Ping Out")
 
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
@@ -197,8 +197,7 @@ class Worker(object):
             elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
-                print 'WHOIS::: %s' % q['nick']
-                getWhois(q['nick'].lower())
+                self.getWhois(q['nick'].lower())
             elif q['tag'] == 'ID':
                 print 'Recovering from master failure!'
                 for i in self.channels:

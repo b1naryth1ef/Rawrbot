@@ -22,10 +22,10 @@ def addAdmin(obj):
         s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
     else:
         s = 'i.%s.admins' % obj.nid
-    if A.red.sismember(s, obj.m[1]):
+    if A.red.sismember(s, obj.m[1].lower()):
         return obj.reply('That user is already an admin!')
     else:
-        A.red.sadd(s, obj.m[1])
+        A.red.sadd(s, obj.m[1].lower())
         if obj.kwargs.get('chan'):
             obj.reply('Added %s as a admin for %s!' % (obj.m[1], obj.kwargs.get('chan')))
         else:
@@ -36,11 +36,11 @@ def rmvAdmin(obj):
     if len(obj.m) < 2: obj.usage()
     if obj.kwargs.get('chan'): s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
     else: s = 'i.%s.admins' % obj.nid
-    if A.red.sismember(s, obj.m[1]):
-        A.red.srem(s, obj.m[1])
-        return obj.reply('Removed %s as an admin!' % obj.m[1])
+    if A.red.sismember(s, obj.m[1].lower()):
+        A.red.srem(s, obj.m[1].lower())
+        return obj.reply('Removed %s as an admin!' % obj.m[1].lower())
     else:
-        return obj.reply('User %s is not an admin!' % obj.m[1])
+        return obj.reply('User %s is not an admin!' % obj.m[1].lower())
 
 @P.cmd('hit')
 def cmdHit(obj):
