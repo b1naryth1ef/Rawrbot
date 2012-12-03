@@ -167,8 +167,8 @@ class API(object):
 
     def isAdmin(self, data):
         v = self.red.get('i.%s.user.%s.auth')
-        a = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['chan']), v)
-        b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['chan']), v)
+        a = self.red.sismember('i.%s.admins' % (data['nid']), v)
+        b = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
         return a or b
 
     def isOp(self, net, chan, nick):
