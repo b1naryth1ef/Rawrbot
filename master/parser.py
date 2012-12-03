@@ -47,6 +47,7 @@ class Parser(object):
                         i = i[1:].lower()
                         self.red.sadd('i.%s.chan.%s.ops' % (q['nid'], q['chan']), i)
                     elif i[0] == '+': i = i[1:].lower()
+                    elif i[0] in ['&', '~']: i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
                     self.red.sadd('i.%s.user.%s.chans' % (q['nid'], i.lower()), q['chan'])
         elif q['tag'] == 'TOPIC': pass
