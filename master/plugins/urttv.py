@@ -2,10 +2,14 @@ from api import Plugin, A
 
 P = Plugin(A, "UrTTV", 0.1, "B1naryTh1ef")
 
-GTV_COMMANDS = ['servers', 'addserver', 'rmvserver']
+GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven']
+
+def editGtvServer(id, kwargs):
+    return A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
 
 def addGtvServer(kwargs):
     id = A.red.incr('i.p.urttv.serverid')
+    kwargs['id'] = id
     return id, A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
 
 def getGtvServers():
@@ -22,13 +26,15 @@ def cmdGTV(obj):
     if len(obj.m) < 2: return obj.usage()
     if obj.m[1] not in GTV_COMMANDS:
         return obj.reply('Unknown GTV command "%s"' % obj.m[1])
+    if obj.m[1] == 'seven':
+        if obj.nick.lower() == 'sevenofnine':
+            return obj.reply("You sexy thing <3")
     if obj.m[1] == 'servers':
         x = getGtvServers()
         if x and len(x):
             obj.reply('GTV Servers: ')
-            for inc, i in enumerate(x):
-                i['id'] = inc+1
-                obj.smu("#{id}: {ip} PW: {pw} Camera: {cam} Admin: {admin} Hoster: {host}".format(**i))
+            for i in x:
+                obj.smu("#{id}: {ip} - PW: {pw} - Camera: {cam} - Admin: {admin} - Hoster: {host}".format(**i))
         else:
             return obj.reply('No GTV servers!')
     elif obj.m[1] == 'rmvserver':
@@ -52,3 +58,15 @@ def cmdGTV(obj):
         id, suc = addGtvServer(val)
         if suc: return obj.reply('Added GTV server #%s!' % id)
         else: return obj.reply('Failed to add GTV server!')
+    elif obj.m[1] == 'editserver':
+        if len(obj.m) < 3: return obj.reply('Usage: !editserver id ip=127.0.0.1 cam=CAMPASS admin=ADMINPASS pw=SERVERPASS host=HOSTERNAME')
+        vals = {}
+        for i in ['ip', 'cam', 'admin', 'pw', 'host']:
+            if i in obj.kwargs.keys():
+                vals[i] = obj.kwargs.get(i)
+        if A.red.exists('i.p.urttv.server.%s' % obj.m[2]):
+            if editGtvServer(obj.m[2], vals):
+                return obj.reply('Edited server #%s successfully!' % obj.m[2])
+            else:
+                return obj.reply('Error editing server #%s!' % obj.m[2])
+        else: return obj.reply('No server with ID #%s!' % obj.m[2])
