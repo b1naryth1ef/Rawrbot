@@ -28,7 +28,7 @@ def cmdGTV(obj):
             obj.reply('GTV Servers: ')
             for inc, i in enumerate(x):
                 i['id'] = inc+1
-                "#{id}: {ip} PW: {pw} Camera: {cam} Admin: {admin} Hoster: {host}".format(**i)
+                obj.smu("#{id}: {ip} PW: {pw} Camera: {cam} Admin: {admin} Hoster: {host}".format(**i))
         else:
             return obj.reply('No GTV servers!')
     elif obj.m[1] == 'rmvserver':

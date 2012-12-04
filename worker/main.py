@@ -51,21 +51,12 @@ class Worker(object):
                 print "Master has not pinged us, going down!"
                 self.keepAlive = False
                 self.quit("Master ping-out")
-            #if time.time()-self.lastPong > 250:
-            #    print "The server hasnt pinged us in a while, it seems we're disconnected!"
-            #    self.quit("IRC Server Ping Out")
 
     def getChanReads(self, *args):
         return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
 
     def sendNames(self, chan, names):
         self.p('NAMES', chan=chan, nicks=names)
-        # if len(names) > 30: tt = 1
-        # else: tt = .5
-        # for i in names:
-        #     if i[0] in ['@', '+', '&', '~']: i = i[1:]
-        #     time.sleep(tt) #prolly not required
-        #     self.getWhois(i)
 
     def parse(self, msg): #@TODO Clean this up
         m = msg.split(' ', 2)
@@ -186,7 +177,7 @@ class Worker(object):
             except:
                 print "Bad message: %s" % q
                 continue
-            print '[%s] => %s' % (q['tag'], q)
+            if q['tag'] != 'PING': print '[%s] => %s' % (q['tag'], q)
             if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
             elif q['tag'] == 'JOIN': self.join(q['chan'], q['pw'])
             elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
