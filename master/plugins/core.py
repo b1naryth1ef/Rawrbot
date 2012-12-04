@@ -15,7 +15,7 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
-@P.cmd('addadmin', usage="{cmd} name chan=#mychan", admin=True, kwargs=True)
+@P.cmd('addadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def addAdmin(obj):
     if len(obj.m) < 2: obj.usage()
     if obj.kwargs.get('chan'):
@@ -31,7 +31,7 @@ def addAdmin(obj):
         else:
             obj.reply('Added %s as a global admin!' % obj.m[1])
 
-@P.cmd('rmvadmin', usage="{cmd} name chan=#mychan", admin=True, kwargs=True)
+@P.cmd('rmvadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def rmvAdmin(obj):
     if len(obj.m) < 2: obj.usage()
     if obj.kwargs.get('chan'): s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
@@ -55,7 +55,7 @@ def cmdDerp(obj):
     elif obj.m[1] == 'scuba': return obj.reply('ROBOTS!')
     elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
 
-@P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", admin=True, kwargs=True, kbool=['verbose', 'reload'])
+@P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", gadmin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
     obj.reply('Pulling update from git...')
     l = os.popen('git pull origin deploy').readlines()
@@ -103,10 +103,10 @@ def cmdOpme(obj):
         return obj.reply(random.choice(s_opmsgs))
     return obj.reply('The bot is not an OP so we cant do that! D:')
 
-@P.cmd('maintence', admin=True, usage='{cmd} set={bool}, msg=A spam message', kwargs=True, kbool=['set'], desc="Enable/Disable the bot maintence mode.", alias=['safemode'])
+@P.cmd('maintence', gadmin=True, usage='{cmd} set={bool}, msg=A spam message', kwargs=True, kbool=['set'], desc="Enable/Disable the bot maintence mode.", alias=['safemode'])
 def cmdMaintence(obj):
     if not 'set' in obj.kwargs: return obj.usage()
-    A.red.publish('irc.m', json.dumps({'tag':'MAINTENCE', 'mode':obj.kwargs.get('set', False)}))
+    A.red.publish('irc.m', json.dumps({'tag': 'MAINTENCE', 'mode': obj.kwargs.get('set', False)}))
     if obj.kwargs.get('set'): obj.reply('We are now in maintence mode! Only admins may use commands.')
     else: obj.reply('Maintence mode deactivated! All users may use commands.')
     if obj.kwargs.get('msg'):
@@ -114,9 +114,9 @@ def cmdMaintence(obj):
         for chan in A.red.smembers('i.%s.chans' % obj.nid):
             obj.send(chan, obj.kwargs.get('msg'))
 
-@P.cmd('config', usage="{cmd} [set/get] key value={bool}", kwargs=True, kbool=['value'], always=True)
+@P.cmd('config', usage="{cmd} [set/get] key value={bool}", admin=True, kwargs=True, kbool=['value'], always=True)
 def cmdConfig(obj):
-    if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
+    #if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
     if obj.kwargs.get('value', None) == None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
     v = obj.m[2].strip().lower()
@@ -136,17 +136,17 @@ def cmdSecret(obj):
         return obj.raw('KICK %s %s :%s' % (obj.dest, obj.nick, 'Congrats! You found the secret!'))
     obj.reply('I DONT KNOW WHAT YOUR TALKING ABOUT!')
 
-@P.cmd('join', admin=True, usage="{cmd} <chan>")
+@P.cmd('join', gadmin=True, usage="{cmd} <chan>")
 def cmdJoin(obj):
     if len(obj.m) < 2: return obj.usage()
     else:
         chan = obj.m[1].replace('#', '').lower()
         if not A.red.sismember('i.%s.chans'% obj.nid, chan):
-            A.red.publish('irc.master', json.dumps({'tag':'JOIN', 'chan':chan, 'nid':obj.nid}))
+            A.red.publish('irc.master', json.dumps({'tag': 'JOIN', 'chan': chan, 'nid': obj.nid}))
             return obj.reply('Bot has joined channel "#%s"' % chan)
         obj.reply('The bot is already in channel "#%s"!' % chan)
 
-@P.cmd('part', admin=True, usage="{cmd} <chan> [msg]")
+@P.cmd('part', gadmin=True, usage="{cmd} <chan> [msg]")
 def cmdPart(obj):
     if len(obj.m) < 2: return obj.usage()
     else:
@@ -154,19 +154,19 @@ def cmdPart(obj):
         else: msg = "Bot is leaving..."
         chan = obj.m[1].replace('#', '').lower()
         if A.red.sismember('i.%s.chans' % obj.nid, chan):
-            i = {'tag':'PART', 'chan':chan, 'msg':msg, 'nid':obj.nid}
+            i = {'tag': 'PART', 'chan': chan, 'msg': msg, 'nid': obj.nid}
             A.red.publish('irc.master', json.dumps(i))
             return obj.reply('Bot has quit channel "#%s"' % chan)
         obj.reply('Bot is not in channel "#%s' % chan)
 
-@P.cmd('quit', admin=True, kwargs=True, kbool=['confirm'], usage="{cmd} msg=My Message confirm={bool}")
+@P.cmd('quit', gadmin=True, kwargs=True, kbool=['confirm'], usage="{cmd} msg=My Message confirm={bool}")
 def cmdQuit(obj):
     if not obj.kwargs: return obj.usage()
     if not obj.kwargs.get('confirm'):
         return obj.reply('You must have kwarg confirm true to complete quitting!')
     if not obj.kwargs.get('msg'):
         return obj.reply('You must provide a message to quit!')
-    A.red.publish('irc.master', json.dumps({'tag':'QUIT', 'msg':obj.kwargs.get('msg')}))
+    A.red.publish('irc.master', json.dumps({'tag': 'QUIT', 'msg': obj.kwargs.get('msg')}))
 
 @P.cmd('slap', admin=True, usage="{cmd} <user>")
 def cmdSlap(obj):
@@ -187,9 +187,9 @@ def cmdReload(obj):
     obj.reply('Reloading plugins...')
     A.reloadPlugins(obj.reply, 'Reloaded all plugins!')
 
-@P.cmd('msg', kwargs=True, kbool=['nick', 'force'], admin=True, 
-    usage="{cmd} msg=A message here! nick=[{bool}] chan=[#channels,#by,#comma] force=[{bool}]", 
-    alias=['m'], 
+@P.cmd('msg', kwargs=True, kbool=['nick', 'force'], gadmin=True,
+    usage="{cmd} msg=A message here! nick=[{bool}] chan=[#channels,#by,#comma] force=[{bool}]",
+    alias=['m'],
     desc="Send a message from the bot")
 def cmdMsg(obj):
     if len(obj.m) == 1: return obj.usage()
@@ -212,7 +212,7 @@ def cmdMsg(obj):
         if len(fails):
             obj.reply('Failed sending to the following channels: %s' % ', '.join(fails))
 
-@P.cmd('status', admin=True, usage="{cmd}", desc="Gets info about the bot")
+@P.cmd('status', gadmin=True, usage="{cmd}", desc="Gets info about the bot")
 def cmdStatus(obj): #@TODO Update
     A.red.delete('i.temp.res')
     num_workers = A.red.scard('i.%s.workers' % obj.nid)
@@ -275,7 +275,7 @@ def cmdEditspam(obj):
     if 'spam' in obj.kwargs:
         A.callHook('core_spam_push', int(obj.m[1]))
     A.red.hset(s, 'data', json.dumps(obj.sess['data']))
-    obj.reply('Edited spam #%s!' % obj.m[1])    
+    obj.reply('Edited spam #%s!' % obj.m[1])
 
 @P.cmd('viewspams', admin=True, usage='{cmd}', desc="Lists all spams and their details.")
 def cmdViewspam(obj):
@@ -287,7 +287,7 @@ def cmdViewspam(obj):
 @P.apih('core_spam_add')
 def coreSpamAdd(nid, msg, chans, duration, timex, active=1):
     num = len(A.red.keys('i.p.core.spam.*'))+1
-    m = {'msg':msg.replace('\\', ''), 'chans':chans, 'nid':nid}
+    m = {'msg': msg.replace('\\', ''), 'chans': chans, 'nid': nid}
     A.red.hset('i.p.core.spam.%s' % num, 'data', json.dumps(m))
     A.red.hset('i.p.core.spam.%s' % num, 'time', timex*60)
     A.red.hset('i.p.core.spam.%s' % num, 'last', time.time())
@@ -315,6 +315,6 @@ def loopCall():
             if float(A.red.hget(k, 'end')) != -1 and time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
-            if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')): 
+            if float(time.time()-float(A.red.hget(k, 'last'))) < float(A.red.hget(k, 'time')):
                 continue
             A.callHook('core_spam_push', float(k.split('.')[-1]))

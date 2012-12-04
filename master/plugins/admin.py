@@ -4,7 +4,7 @@ from data import ConfigFile
 P = Plugin(A, "Admin", 0.1, "B1naryTh1ef")
 
 default_cfg = {
-    'admin_chans':['b1naryth1ef', 'rawrbot.admins']
+    'admin_chans': ['b1naryth1ef', 'rawrbot.admins']
 }
 
 cfg = ConfigFile(name='admin', path=['plugins', 'config'], default=default_cfg)
@@ -54,7 +54,7 @@ def cmdKick(obj):
         return obj.raw('KICK %s %s :%s' % (obj.dest, obj.m[1], obj.kwargs.get('msg', '')))
     obj.reply('The bot is not an operator, and as such cannot complete your command!')
 
-@P.cmd('report', usage='{cmd} My message to admins', 
+@P.cmd('report', usage='{cmd} My message to admins',
     desc="Send a message to the admins (IN ENGLISH), or ask for assistance. (Abuse results in banz!)")
 def cmdReport(obj):
     if len(obj.m) < 2:
@@ -62,14 +62,14 @@ def cmdReport(obj):
     if not obj.admin and A.red.get('i.p.core.repu.%s' % obj.nick): #This isnt horribly secure, but w/e
         return obj.reply('Please wait 10 minutes in between sending reports (to prevent abuse)!')
     A.red.set('i.p.core.repu.%s' % obj.nick, 1)
-    A.red.expire('i.p.core.repu.%s' % obj.nick, 600) 
+    A.red.expire('i.p.core.repu.%s' % obj.nick, 600)
     msg = ' '.join(obj.m[1:])
     result, id = adminAddReport(msg, obj.nick, obj._data.get('dest'), obj.nid)
     if not result:
         return obj.reply("There was an error filing your report!")
     return obj.reply('Your report (#%s) has been filed. Please be patient as we process it.' % id)
 
-@P.cmd('rlist', admin=True, kwargs=True, kbool=['active'],
+@P.cmd('rlist', gadmin=True, kwargs=True, kbool=['active'],
     usage='{cmd} active={bool}', desc="List all reports, use active bool to filter out closed reports.")
 def cmdRlist(obj):
     obj.reply('ALL REPORTS:')
@@ -82,7 +82,7 @@ def cmdRlist(obj):
         else: chan = ''
         obj.reply('#%s: "%s" - %s %s' % (key.split('.')[-1], msg, user, chan))
 
-@P.cmd('redit', admin=True, kwargs=True, kbool=['active', 'delete'],
+@P.cmd('redit', gadmin=True, kwargs=True, kbool=['active', 'delete'],
     usage="{cmd} id active={bool} delete={bool}", desc="Edit a report.")
 def cmdRedit(obj):
     if len(obj.m) < 2: return obj.usage()
@@ -91,8 +91,7 @@ def cmdRedit(obj):
 
     if 'active' in obj.kwargs:
         A.red.hset('i.p.core.rep.%s' % obj.m[1], 'active', int(obj.kwargs.get('active')))
-        return obj.reply('Report #%s is now %s' % (obj.m[1], {False:'[INACTIVE]', True:'[ACTIVE]'}[obj.kwargs.get('active', False)]))
+        return obj.reply('Report #%s is now %s' % (obj.m[1], {False: '[INACTIVE]', True: '[ACTIVE]'}[obj.kwargs.get('active', False)]))
     if obj.kwargs.get('delete', False):
         A.red.delete('i.p.core.rep.%s' % obj.m[1])
         return obj.reply('Report #%s deleted!' % obj.m[1])
-

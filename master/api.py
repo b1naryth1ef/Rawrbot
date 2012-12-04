@@ -205,16 +205,14 @@ class API(object):
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
-            if obj._cmd['admin'] is True:
+            if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
                 v = self.isAdmin(data)
                 obj.admin, obj.globaladmin = v
-                if not obj.admin:
+                if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
                     msg = "You must be an admin to use that command!"
                     if obj.pm: self.writeUser(data, data['nick'], msg)
                     else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                     return
-                else:
-                    obj.admin = True
             if obj._cmd['op'] and not obj.isOp:
                 msg = "You must be an op to use that command!"
                 if obj.pm: self.writeUser(data, data['nick'], msg)
@@ -248,13 +246,13 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False):
-       # print 'Adding %s' % name
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False):
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug': plugin,
             'f': func,
             'admin': admin,
+            'gadmin': gadmin,
             'kwargs': kwargs,
             'kbool': kbool,
             'usage': usage,
@@ -286,7 +284,7 @@ class API(object):
 
     def addHook(self, plugin, hook, func):
         id = random.randint(1111111, 9999999)
-        if id in self.hook_key.keys(): return addHook(plugin, hook, func) #Recursion fix for edgecase
+        if id in self.hook_key.keys(): return self.addHook(plugin, hook, func) #Recursion fix for edgecase
         self.hook_key[id] = (plugin, hook, func)
         if hook in self.hooks.keys(): self.hooks[hook].append(id)
         else: self.hooks[hook] = [id]

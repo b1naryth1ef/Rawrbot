@@ -186,6 +186,7 @@ class Worker(object):
             except:
                 print "Bad message: %s" % q
                 continue
+            print '[%s] => %s' % (q['tag'], q)
             if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
             elif q['tag'] == 'JOIN': self.join(q['chan'], q['pw'])
             elif q['tag'] == "SHUTDOWN": self.quit(q['msg'])
@@ -199,13 +200,10 @@ class Worker(object):
             elif q['tag'] == 'WHOIS':
                 self.getWhois(q['nick'].lower())
             elif q['tag'] == 'ID':
-                print 'Recovering from master failure!'
-                for i in self.channels:
-                    self.write('PRIVMSG %s :%s' % (i, 'Master has gone down! Bot is recovering...'))
+                print 'Master failed!'
                 self.push('ID', id=self.id, nid=self.nid, chans=self.channels)
             else:
                 print 'WAT? %s: %s' % (c, q)
-            #@TODO Add a delay here depending on the server
 
     def connect(self):
         print 'Connecting to %s as %s' % (self.server, self.nick)
@@ -227,6 +225,7 @@ class Worker(object):
     def ircloop(self):
         while self.active and self.c.alive:
             l = self.c.read()
+            if not l: return self.quit("Disconnected from irc!")
             for i in l.split('\r\n'):
                 if i: thread.start_new_thread(self.parse, (i,)) #Not really required, but helps safe-handeling functions (for now)
 

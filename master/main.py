@@ -21,7 +21,6 @@ default_cfg = {
             'plugins':['core']
         }
     ],
-    'plugins': ['util']
 }
 
 rand = lambda: random.randint(11111, 99999)

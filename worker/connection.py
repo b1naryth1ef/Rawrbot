@@ -49,10 +49,7 @@ class Connection():
     def read(self, bytes=4080):
         data = unicode(self.c.recv(bytes), errors="replace")
         if DEBUG: print data
-        if data: return data
-        else:
-            print "Are we disconnected? Or is b1n a fail?"
-        return None
+        return data
 
     def write(self, content):
         self.c.send('%s\r\n' % content)
