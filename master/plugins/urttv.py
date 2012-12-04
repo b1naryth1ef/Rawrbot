@@ -12,6 +12,7 @@ def getGtvServers():
     servers = []
     for key in A.red.keys('i.p.urttv.server.*'):
         servers.append(A.red.hgetall(key))
+    return servers
 
 #!gtv
 #!gtv addserver ip=blah.blah.com pw=joinpw cam=campw admin=adminpw, host=blah
@@ -23,7 +24,7 @@ def cmdGTV(obj):
         return obj.reply('Unknown GTV command "%s"' % obj.m[1])
     if obj.m[1] == 'servers':
         x = getGtvServers()
-        if len(x):
+        if x and len(x):
             obj.reply('GTV Servers: ')
             for inc, i in enumerate(x):
                 i['id'] = inc+1
