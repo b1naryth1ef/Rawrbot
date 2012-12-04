@@ -5,7 +5,7 @@ P = Plugin(A, "UrTTV", 0.1, "B1naryTh1ef")
 GTV_COMMANDS = ['servers', 'addserver', 'rmvserver']
 
 def addGtvServer(kwargs):
-    id = A.red.incr('i.p.urttv.server.id')
+    id = A.red.incr('i.p.urttv.serverid')
     return id, A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
 
 def getGtvServers():
