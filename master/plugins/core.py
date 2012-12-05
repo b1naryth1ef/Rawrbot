@@ -51,8 +51,8 @@ def cmdHit(obj):
     card_val = random.randint(1, 13)
     if card_val in card_key: card_num = card_key[card_val]
     else: card_num = card_val
-    card_suite = random.choice([u'S', u'H', u'D', u'C'])
-    cur_card = u'{card}{suite}'.format(card=card_num, suite=card_suite)#.encode('utf-8')
+    card_suite = random.choice(['S', 'H', 'D', 'C'])
+    cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)#.encode('utf-8')
     lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
     if A.red.exists(lkey):
         lasts = A.red.smembers(lkey)
@@ -65,14 +65,14 @@ def cmdHit(obj):
     obj.reply(u'Card: %s' % cur_card)
     if lasts:
         A.red.delete(lkey)
-        obj.reply(u'Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
+        obj.reply('Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
     if last == 21:
-        obj.reply(u'\x033YOU WIN!\x03')
+        obj.reply('\x033YOU WIN!\x03')
     elif last > 21:
         obj.reply('\x034YOU LOOSE!\x03')
     elif last < 21:
         obj.reply('\x032Pick Again!\x03')
-        A.red.sadd(lkey, [cur_card]+lasts)
+        A.red.sadd(lkey, *list([cur_card]+lasts))
         A.red.expire(lkey, 600)
     #return obj.reply("YOU WIN! (Yeah still not implemented...)")
 
