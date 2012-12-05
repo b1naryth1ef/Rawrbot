@@ -55,7 +55,7 @@ def cmdHit(obj):
     cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)#.encode('utf-8')
     lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
     if A.red.exists(lkey):
-        lasts = A.red.smembers(lkey)
+        lasts = list(A.red.smembers(lkey))
         for i in lasts:
             if i[:-1] in card_key.keys():
                 last += card_key[i[:-1]]
