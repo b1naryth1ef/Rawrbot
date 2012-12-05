@@ -51,7 +51,7 @@ def cmdHit(obj):
     if card_val in card_key: card_num = card_key[card_val]
     else: card_num = card_val
     card_suite = random.choice(['♠', '♥', '♦', '♣'])
-    cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)
+    cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite).encode('utf-8')
     lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
     if A.red.exists(lkey):
         lasts = A.red.smembers(lkey)

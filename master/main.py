@@ -68,7 +68,7 @@ class Worker(object):
         if send: self.push('PART', chan=chan, msg=msg)
 
     def ping(self):
-        print "Pinging Worker #%s [%s]" % (self.id, self.nid)
+        #print "Pinging Worker #%s [%s]" % (self.id, self.nid)
         if not self.ready: return
         self.waitPing = True
         self.push('PING')
