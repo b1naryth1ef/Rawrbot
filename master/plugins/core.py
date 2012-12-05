@@ -47,7 +47,7 @@ card_key = {11: 'jack', 12: 'queen', 13: 'king', 1: 'ace'}
 @P.cmd('hit')
 def cmdHit(obj):
     last = 0
-    lasts = None
+    lasts = []
     card_val = random.randint(1, 13)
     if card_val in card_key: card_num = card_key[card_val]
     else: card_num = card_val
