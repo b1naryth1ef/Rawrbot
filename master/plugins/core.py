@@ -53,8 +53,8 @@ def cmdHit(obj):
     card_suite = random.choice(['♠', '♥', '♦', '♣'])
     cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)
     lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
-    if A.exists(lkey):
-        lasts = A.smembers(lkey)
+    if A.red.exists(lkey):
+        lasts = A.red.smembers(lkey)
         for i in lasts:
             if i[1:] in card_key.keys():
                 last += card_key[i[1:]]
@@ -63,7 +63,7 @@ def cmdHit(obj):
     last += card_val
     obj.reply('Card: %s' % cur_card)
     if lasts:
-        A.delete(lkey)
+        A.red.delete(lkey)
         obj.reply('Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
     if last == 21:
         obj.reply('\x033YOU WIN!\x03')
