@@ -68,6 +68,7 @@ class Worker(object):
         if send: self.push('PART', chan=chan, msg=msg)
 
     def ping(self):
+        print "Pinging Worker #%s [%s]" % (self.id, self.nid)
         if not self.ready: return
         self.waitPing = True
         self.push('PING')
@@ -125,11 +126,11 @@ class Network(object):
         return len([i for i in self.workers.values() if i != None])
 
     def boot(self):
-        red.delete('i.%s.chans' % self.id)
-        red.delete('i.%s.workers' % self.id)
         for chan in self.channels.keys():
             red.delete('i.%s.chan.%s.users' % (self.id, chan))
         if self.master.isMaster:
+            red.delete('i.%s.chans' % self.id)
+            red.delete('i.%s.workers' % self.id)
             for key in red.keys('i.%s.user.*' % self.id):
                 print "Deleting key '%s'" % key
                 red.delete(key)

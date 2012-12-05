@@ -193,6 +193,7 @@ class Worker(object):
             elif q['tag'] == 'ID':
                 print 'Master failed!'
                 self.push('ID', id=self.id, nid=self.nid, chans=self.channels)
+                self.pinged = True #Reset ping loop to fix edge case
             else:
                 print 'WAT? %s: %s' % (c, q)
 
