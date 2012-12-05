@@ -57,10 +57,10 @@ def cmdHit(obj):
     if A.red.exists(lkey):
         lasts = A.red.smembers(lkey)
         for i in lasts:
-            if i[1:] in card_key.keys():
-                last += card_key[i[1:]]
+            if i[:-1] in card_key.keys():
+                last += card_key[i[:-1]]
             else:
-                last += int(i[1:])
+                last += int(i[:-1])
     last += card_val
     obj.reply(u'Card: %s' % cur_card)
     if lasts:
