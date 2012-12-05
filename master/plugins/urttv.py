@@ -18,6 +18,10 @@ def getGtvServers():
         servers.append(A.red.hgetall(key))
     return servers
 
+def editMatch(id, kwargs): pass
+def addMatch(kwargs): pass
+def getMatches(): pass
+
 #!gtv
 #!gtv addserver ip=blah.blah.com pw=joinpw cam=campw admin=adminpw, host=blah
 @P.cmd('.gtv', admin=True, usage='{cmd} <cmd> [args]', kwargs=True) #the . is for compatability right now
@@ -70,3 +74,7 @@ def cmdGTV(obj):
             else:
                 return obj.reply('Error editing server #%s!' % obj.m[2])
         else: return obj.reply('No server with ID #%s!' % obj.m[2])
+    elif obj.m[1] == 'addmatch': pass
+    elif obj.m[1] == 'rmvmatch': pass
+    elif obj.m[1] == 'editmatch': pass
+    elif obj.m[1] == 'matches': pass

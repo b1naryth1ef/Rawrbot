@@ -129,9 +129,10 @@ class Network(object):
         red.delete('i.%s.workers' % self.id)
         for chan in self.channels.keys():
             red.delete('i.%s.chan.%s.users' % (self.id, chan))
-        for key in red.keys('i.%s.user.*' % self.id):
-            print "Deleting key '%s'" % key
-            red.delete(key)
+        if self.master.isMaster:
+            for key in red.keys('i.%s.user.*' % self.id):
+                print "Deleting key '%s'" % key
+                red.delete(key)
         red.set('i.%s.nickkey' % self.id, self.nickkey)
         red.sadd('i.%s.chans' % self.id, *self.channels)
 
@@ -283,6 +284,7 @@ class Master(object):
     def recover(self):
         for nid in self.networks.keys():
             for i in red.smembers('i.%s.workers' % nid):
+                print 'Sending recovery message to %s' % i
                 red.rpush('i.%s.worker.%s' % (nid, i), json.dumps({'tag': 'ID'}))
 
     def pingLoop(self):
@@ -316,6 +318,7 @@ class Master(object):
                     if self.num > i['index']:
                         self.num -= 1
                         if self.num == 1:
+                            print 'Taking over as master!'
                             self.isMaster = True
                             self.parser.takeMaster()
                             thread.start_new_thread(self.masterLoop, ())
