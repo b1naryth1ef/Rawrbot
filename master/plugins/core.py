@@ -50,8 +50,8 @@ def cmdHit(obj):
     card_val = random.randint(1, 13)
     if card_val in card_key: card_num = card_key[card_val]
     else: card_num = card_val
-    card_suite = random.choice([u'♠', u'♥', u'♦', u'♣'])
-    cur_card = u'{card}{suite}'.format(card=card_num, suite=card_suite).encode('utf-8')
+    card_suite = random.choice([u'S', u'H', u'D', u'C'])
+    cur_card = u'{card}{suite}'.format(card=card_num, suite=card_suite)#.encode('utf-8')
     lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
     if A.red.exists(lkey):
         lasts = A.red.smembers(lkey)
@@ -61,12 +61,12 @@ def cmdHit(obj):
             else:
                 last += int(i[1:])
     last += card_val
-    obj.reply('Card: %s' % cur_card)
+    obj.reply(u'Card: %s' % cur_card)
     if lasts:
         A.red.delete(lkey)
-        obj.reply('Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
+        obj.reply(u'Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
     if last == 21:
-        obj.reply('\x033YOU WIN!\x03')
+        obj.reply(u'\x033YOU WIN!\x03')
     elif last > 21:
         obj.reply('\x034YOU LOOSE!\x03')
     elif last < 21:

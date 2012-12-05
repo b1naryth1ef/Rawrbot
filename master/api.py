@@ -33,31 +33,31 @@ class FiredEvent():
 
 class FiredCommand(FiredEvent):
     def reply(self, msg):
-        if self.pm: self.privmsg(self.nick, msg.encode('utf-8'))
-        else: self.send(self.dest, '%s: %s' % (self.nick, msg.encode('utf-8')))
+        if self.pm: self.privmsg(self.nick, msg)
+        else: self.send(self.dest, '%s: %s' % (self.nick, msg))
 
     def isBotOp(self):
         i = self._api.red.get('i.%s.worker.%s.%s.op' % (self.nid, self.id, self.dest.replace('#', '')))
         if i: return bool(int(i))
         return False
 
-    def pmu(self, msg): self.privmsg(self.nick, msg.encode('utf-8'))
-    def smu(self, msg): self.send(self.dest, msg.encode('utf-8'))
+    def pmu(self, msg): self.privmsg(self.nick, msg)
+    def smu(self, msg): self.send(self.dest, msg)
 
     def usage(self):
         i = self._cmd['usage'].format(**{'cmd': self._name, 'bool': 'true/false|on/off|1/0'})
         self.reply('Usage: '+self._prefix+i)
 
     def privmsg(self, user, msg):
-        k = {'tag': 'PM', 'msg': msg.encode('utf-8'), 'nick': user}
+        k = {'tag': 'PM', 'msg': msg, 'nick': user}
         self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
     def send(self, chan, msg): #@TODO Check if valid channel?
-        k = {'tag': 'MSG', 'chan': chan.replace('#', ''), 'msg': msg.encode('utf-8')}
+        k = {'tag': 'MSG', 'chan': chan.replace('#', ''), 'msg': msg}
         self._api.red.rpush('i.%s.chan.%s' % (self.nid, k['chan']), json.dumps(k))
 
     def raw(self, msg):
-        k = {'tag': 'RAW', 'msg': msg.encode('utf-8')}
+        k = {'tag': 'RAW', 'msg': msg}
         self._api.red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
 class Plugin():
