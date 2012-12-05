@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from api import Plugin, A
 import json, time, random, os
 
@@ -42,9 +43,37 @@ def rmvAdmin(obj):
     else:
         return obj.reply('User %s is not an admin!' % obj.m[1].lower())
 
+card_key = {11: 'jack', 12: 'queen', 13: 'king', 1: 'ace'}
 @P.cmd('hit')
 def cmdHit(obj):
-    return obj.reply("YOU WIN! (Yeah still not implemented...)")
+    last = 0
+    card_val = random.randint(1, 13)
+    if card_val in card_key: card_num = card_key[card_val]
+    else: card_num = card_val
+    card_suite = random.choice(['♠', '♥', '♦', '♣'])
+    cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)
+    lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
+    if A.exists(lkey):
+        lasts = A.smembers(lkey)
+        for i in lasts:
+            if i[1:] in card_key.keys():
+                last += card_key[i[1:]]
+            else:
+                last += int(i[1:])
+    last += card_val
+    obj.reply('Card: %s' % cur_card)
+    if lasts:
+        A.delete(lkey)
+        obj.reply('Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
+    if last == 21:
+        obj.reply('\x033YOU WIN!\x03')
+    elif last > 21:
+        obj.reply('\x034YOU LOOSE!\x03')
+    elif last < 21:
+        obj.reply('\x032Pick Again!\x03')
+        A.red.sadd(lkey, [cur_card]+lasts)
+        A.red.expire(lkey, 600)
+    #return obj.reply("YOU WIN! (Yeah still not implemented...)")
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
