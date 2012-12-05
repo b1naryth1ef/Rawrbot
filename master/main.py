@@ -242,7 +242,6 @@ class Master(object):
             self.networks[num] = Network(num, i['host'], self, plugins=i['plugins'], channels=i['chans'], auth=i['auth'])
             if i['lock_workers'] != 0:
                 self.networks[num].max_workers = i['lock_workers']
-            self.networks[num].boot()
 
         if red.llen('i.masters'):
             self.parent = red.lindex('i.masters', -1)
@@ -258,6 +257,9 @@ class Master(object):
                     red.delete('i.%s.chan.%s.users' % (net.id, chan))
             red.rpush('i.masters', self.uid)
             thread.start_new_thread(self.masterLoop, ())
+
+        for net in self.networks.values():
+            net.boot()
 
         print 'We are #%s, and #%s in the queue!' % (self.uid, self.num)
 
@@ -327,7 +329,7 @@ class Master(object):
                             self.isMaster = False
                             print 'Error, we have a <1 ID'
                             sys.exit()
-                elif i['tag'] == 'MAINTENCE':
+                elif i['tag'] == 'MAINTENCE': #@TOOD move to redis value
                     self.parser.A.maintence = i['mode']
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook

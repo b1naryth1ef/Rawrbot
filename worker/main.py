@@ -205,6 +205,7 @@ class Worker(object):
         if not self.c.connect(self.channels):
             print 'Failed to connect!'
             sys.exit()
+        print 'CONNECTED!'
         self.push('READY')
         thread.start_new_thread(self.checkForPing, ())
         self.ready = True
