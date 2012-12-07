@@ -58,7 +58,7 @@ def cmdGTV(obj):
         val['admin'] = obj.kwargs.get('admin')
         val['pw'] = obj.kwargs.get('pw')
         val['host'] = obj.kwargs.get('host')
-        val['id'] = obj.kwargsg.get('oid', None)
+        val['id'] = obj.kwargs.get('oid', None)
         id, suc = addGtvServer(val)
         if suc: return obj.reply('Added GTV server #%s!' % id)
         else: return obj.reply('Failed to add GTV server!')
