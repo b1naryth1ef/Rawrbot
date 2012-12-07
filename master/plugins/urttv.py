@@ -26,12 +26,12 @@ def getMatches(): pass
 
 #!gtv
 #!gtv addserver ip=blah.blah.com pw=joinpw cam=campw admin=adminpw, host=blah
-@P.cmd('gtv', usage='{cmd} <cmd> [args]', kwargs=True, chans=["urban-zone.radio", "urttv"])
+@P.cmd('.gtv', usage='{cmd} <cmd> [args]', kwargs=True, chans=["urban-zone.radio", "urttv"])
 def cmdGTV(obj):
     _usage = "!gtv addserver ip=127.0.0.1 cam=CAMPASS admin=ADMINPASS (not required:) pw=SERVERPASS host=HOSTERNAME"
     if len(obj.m) < 2: return obj.usage()
     if obj.m[1] not in GTV_COMMANDS+GTV_PUB_COMMANDS: return obj.reply('Unknown GTV command "%s"' % obj.m[1])
-    if not obj.admin and obj.m[1] in GTV_COMMANDS: return obj.reply('You must be an admin to do that!')
+    if obj.m[1] in GTV_COMMANDS and not (obj.admin or obj.globaladmin): return obj.reply('You must be an admin to do that!')
     if obj.m[1] == 'seven' and obj.nick.lower() == 'sevenofnine': return obj.reply("You sexy thing <3")
     if obj.m[1] == 'servers':
         x = getGtvServers()
