@@ -15,10 +15,16 @@ def addGtvServer(kwargs):
     return kwargs['id'], A.red.hmset('i.p.urttv.server.%s' % kwargs['id'], kwargs)
 
 def getGtvServers():
-    servers = []
+    servers = {}
     for key in A.red.keys('i.p.urttv.server.*'):
-        servers.append(A.red.hgetall(key))
-    return servers
+        v = A.red.hgetall(key)
+        servers[int(v['id'])] = v
+    li = servers.keys()
+    li.sort()
+    res = []
+    for k in li:
+        res.append(servers[k])
+    return res
 
 def editMatch(id, kwargs): pass
 def addMatch(kwargs): pass
