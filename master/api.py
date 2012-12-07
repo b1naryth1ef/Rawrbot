@@ -167,7 +167,7 @@ class API(object):
     def isAdmin(self, data):
         print 'Admin check: %s' % data['nick']
         if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
-            return True, True
+            return None, True, True
         if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
             if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
@@ -215,7 +215,7 @@ class API(object):
                 if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins:
                     return self.pcmdMsg(obj, data, "That command is not enabled on this network!")
             if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
-                if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
+                if not (obj._cmd['admin'] and obj.admin) or not (obj._cmd['gadmin'] and obj.globaladmin):
                     return self.pcmdMsg(obj, data, "You must be an %sadmin to use that command!" % ("global " if obj._cmd['gadmin'] else ""))
             if obj._cmd['op'] and not obj.isOp:
                 return self.pcmdMsg(obj, data, "You must be a channel operator to use that command!")
