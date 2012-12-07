@@ -65,6 +65,7 @@ class Plugin():
         self.api = api
         self.realname = name.lower().replace(' ', '')
         self.mod = None
+        self.plug = None
         self.name = name
         self.version = version
         self.author = author
@@ -72,10 +73,14 @@ class Plugin():
         self.cmds = []
         self.hooks = []
 
-        self.api.plugins[self.realname] = self
+        if self.realname in self.api.plugins:
+            self = self.api.plugins[self.realname]
+        else:
+            self.api.plugins[self.realname] = self
 
-    def loaded(self, mod):
+    def loaded(self, plug, mod):
         self.mod = mod
+        self.plug = plug
 
     def apih(self, name):
         def deco(func):
@@ -106,8 +111,8 @@ class Plugin():
 
     def reload(self):
         self.unload()
-        self.mod = reload(self.mod)
-        self.mod.plugin = self
+        self.plug = reload(self.plug)
+        #self.plug.plugin = self
         if hasattr(self.mod, 'onLoad'): self.onLoad()
 
     def unload(self):
@@ -248,7 +253,8 @@ class API(object):
 
     #@TODO Clean this WHOLE thing up (gonna suck, ik)
     def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False, chans=[]):
-        if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
+        if name in self.commands.keys(): 
+            raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug': plugin,
             'f': func,
@@ -302,20 +308,20 @@ class API(object):
             if not i[0] in ['.', '_'] and i.endswith('.py'):
                 i = i.split('.py')[0]
                 if self.hasPlugin(i): continue
-                __import__('plugins.%s' % i, globals(), locals(), [], -1)
-                self.loadPlugin(i)
+                plug = __import__('plugins.%s' % i)
+                self.loadPlugin(plug, i)
 
     def hasPlugin(self, name):
         if name in self.plugins.keys():
             return True
         return False
 
-    def loadPlugin(self, f):
+    def loadPlugin(self, plug, f):
         mod = sys.modules['plugins.%s' % f]
         if hasattr(mod, 'onBoot'): mod.onBoot()
         if f in self.plugins:
             print 'Calling .loaded() of %s' % f
-            self.plugins[f].loaded(mod)
+            self.plugins[f].loaded(plug, mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
         for i in self.loops:
