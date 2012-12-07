@@ -165,24 +165,25 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
+        nick = data['nick'].lower()
         print 'Admin check: %s' % data['nick']
         if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
-            return None, True, True
-        if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
-            if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
+            return True, True
+        if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], nick)):
+            if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], nick)):
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 for i in range(1, 20):
-                    if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
+                    if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], nick)):
                         time.sleep(.5)
                     else: break
-        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
+        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], nick))
         if v: v = v.lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
-        if b: return v, True, True
-        if c: return v, True, False
-        return v, False, False
+        if b: return True, True
+        if c: return True, False
+        return False, False
 
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
@@ -199,9 +200,7 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        obj.authname, obj.admin, obj.globaladmin = self.isAdmin(data)
-        if obj.authname: obj.authed = True
-        else: obj.authed = False
+        obj.admin, obj.globaladmin = self.isAdmin(data)
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
@@ -215,7 +214,8 @@ class API(object):
                 if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins:
                     return self.pcmdMsg(obj, data, "That command is not enabled on this network!")
             if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
-                if not (obj._cmd['admin'] and obj.admin) or not (obj._cmd['gadmin'] and obj.globaladmin):
+                if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
+                    print obj.admin, obj.globaladmin
                     return self.pcmdMsg(obj, data, "You must be an %sadmin to use that command!" % ("global " if obj._cmd['gadmin'] else ""))
             if obj._cmd['op'] and not obj.isOp:
                 return self.pcmdMsg(obj, data, "You must be a channel operator to use that command!")
