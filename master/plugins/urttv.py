@@ -3,14 +3,16 @@ from api import Plugin, A
 P = Plugin(A, "UrTTV", 0.1, "B1naryTh1ef")
 
 GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven']
+GTV_PUB_COMMANDS = ["upcoming", "last", "suggest"]
 
 def editGtvServer(id, kwargs):
     return A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
 
 def addGtvServer(kwargs):
-    id = A.red.incr('i.p.urttv.serverid')
-    kwargs['id'] = id
-    return id, A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
+    if not kwargs['id']:
+        id = A.red.incr('i.p.urttv.serverid')
+        kwargs['id'] = id
+    return kwargs['id'], A.red.hmset('i.p.urttv.server.%s' % kwargs['id'], kwargs)
 
 def getGtvServers():
     servers = []
@@ -24,23 +26,20 @@ def getMatches(): pass
 
 #!gtv
 #!gtv addserver ip=blah.blah.com pw=joinpw cam=campw admin=adminpw, host=blah
-@P.cmd('.gtv', admin=True, usage='{cmd} <cmd> [args]', kwargs=True) #the . is for compatability right now
+@P.cmd('gtv', usage='{cmd} <cmd> [args]', kwargs=True, chans=["urban-zone.radio", "urttv"])
 def cmdGTV(obj):
     _usage = "!gtv addserver ip=127.0.0.1 cam=CAMPASS admin=ADMINPASS (not required:) pw=SERVERPASS host=HOSTERNAME"
     if len(obj.m) < 2: return obj.usage()
-    if obj.m[1] not in GTV_COMMANDS:
-        return obj.reply('Unknown GTV command "%s"' % obj.m[1])
-    if obj.m[1] == 'seven':
-        if obj.nick.lower() == 'sevenofnine':
-            return obj.reply("You sexy thing <3")
+    if obj.m[1] not in GTV_COMMANDS+GTV_PUB_COMMANDS: return obj.reply('Unknown GTV command "%s"' % obj.m[1])
+    if not obj.admin and obj.m[1] in GTV_COMMANDS: return obj.reply('You must be an admin to do that!')
+    if obj.m[1] == 'seven' and obj.nick.lower() == 'sevenofnine': return obj.reply("You sexy thing <3")
     if obj.m[1] == 'servers':
         x = getGtvServers()
         if x and len(x):
             obj.reply('GTV Servers: ')
             for i in x:
-                obj.smu("#{id}: {ip} - PW: {pw} - Camera: {cam} - Admin: {admin} - Hoster: {host}".format(**i))
-        else:
-            return obj.reply('No GTV servers!')
+                obj.smu("  #{id}: {ip} - PW: {pw} - Camera: {cam} - Admin: {admin} - Hoster: {host}".format(**i))
+        else: return obj.reply('No GTV servers!')
     elif obj.m[1] == 'rmvserver':
         id = obj.kwargs.get('id')
         if not id and len(obj.m) > 2: id = obj.m[2]
@@ -59,6 +58,7 @@ def cmdGTV(obj):
         val['admin'] = obj.kwargs.get('admin')
         val['pw'] = obj.kwargs.get('pw')
         val['host'] = obj.kwargs.get('host')
+        val['id'] = obj.kwargsg.get('oid', None)
         id, suc = addGtvServer(val)
         if suc: return obj.reply('Added GTV server #%s!' % id)
         else: return obj.reply('Failed to add GTV server!')

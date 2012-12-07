@@ -130,7 +130,6 @@ class API(object):
         self.apis = {}
         self.hooks = {}
         self.loops = []
-        self.maintence = False
         self.canLoop = False
 
     def callHook(self, hook, *args, **kwargs):
@@ -181,12 +180,16 @@ class API(object):
         if v: v = v.lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
-        if b: return True, True
-        if c: return True, False
-        return False, False
+        if b: return v, True, True
+        if c: return v, True, False
+        return v, False, False
 
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
+
+    def pcmdMsg(self, obj, data, msg):
+        if obj.pm: self.writeUser(data, data['nick'], msg)
+        else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
 
     def parseCommand(self, data):
         m = data['msg'].split(' ')
@@ -196,31 +199,25 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        #obj.admin, obj.globaladmin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
+        obj.authname, obj.admin, obj.globaladmin = self.isAdmin(data)
+        if obj.authname: obj.authed = True
+        else: obj.authed = False
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
-            if self.maintence and not obj.admin: return #Dont even reply
+            b = int(A.red.get("i.maintmode")) if A.red.get("i.maintmode").isdigit() else False
+            if b and not obj.admin: return #Dont even reply
+            if len(obj._cmd['chans']) and data['dest'].replace('#', '') not in obj._cmd['chans']:
+                return self.pcmdMsg(obj, data, "That command is not enabled in this channel!")
             if len(self.master.networks[data['nid']].plugins):
                 if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins:
-                    msg = "That command is not enabled here!"
-                    if obj.pm: self.writeUser(data, data['nick'], msg)
-                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                    return
+                    return self.pcmdMsg(obj, data, "That command is not enabled on this network!")
             if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
-                v = self.isAdmin(data)
-                obj.admin, obj.globaladmin = v
                 if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
-                    msg = "You must be an admin to use that command!"
-                    if obj.pm: self.writeUser(data, data['nick'], msg)
-                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                    return
+                    return self.pcmdMsg(obj, data, "You must be an %sadmin to use that command!" % ("global " if obj._cmd['gadmin'] else ""))
             if obj._cmd['op'] and not obj.isOp:
-                msg = "You must be an op to use that command!"
-                if obj.pm: self.writeUser(data, data['nick'], msg)
-                else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                return False
+                return self.pcmdMsg(obj, data, "You must be a channel operator to use that command!")
             if obj._cmd['kwargs']:
                 obj.kwargs = dict(re.findall(r'([^ \=]+)\=[ ]*(.+?)?(?:(?= [^ \\]+\=)|$)', ' '.join(m[1:])))
                 for i in obj._cmd['kbool']:
@@ -236,7 +233,6 @@ class API(object):
                             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                             return
             thread.start_new_thread(obj._cmd['f'], (obj,))
-            #del obj #Cleanup (do we need to do this? maybe not...)
             return True
         else:
             _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
@@ -249,7 +245,8 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False):
+    #@TODO Clean this WHOLE thing up (gonna suck, ik)
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False, chans=[]):
         if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug': plugin,
@@ -264,7 +261,7 @@ class API(object):
             'op': op,
             'nolist': nolist,
             'always': always,
-        }
+            'chans': chans}
 
         for i in alias:
             self.alias[i] = name

@@ -153,6 +153,7 @@ class Network(object):
         red.delete('i.%s.chan.%s.ops' % (self.id, chan))
         m = None
         for i in self.workers.values():
+            if i == None: continue
             if m == None: m = i
             elif len(m.chans) > len(i.chans): m = i
         self.channels[chan] = m
@@ -330,8 +331,6 @@ class Master(object):
                             self.isMaster = False
                             print 'Error, we have a <1 ID'
                             sys.exit()
-                elif i['tag'] == 'MAINTENCE': #@TOOD move to redis value
-                    self.parser.A.maintence = i['mode']
                 elif i['tag'] == 'UPD':
                     print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     os.popen('git pull origin deploy')
