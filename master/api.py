@@ -206,7 +206,8 @@ class API(object):
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
-            b = int(A.red.get("i.maintmode")) if A.red.get("i.maintmode").isdigit() else False
+            _b = A.red.get("i.maintmode")
+            b = int(_b) if _b and _b.isdigit() else False
             if b and not obj.admin: return #Dont even reply
             if len(obj._cmd['chans']) and data['dest'].replace('#', '') not in obj._cmd['chans']:
                 return self.pcmdMsg(obj, data, "That command is not enabled in this channel!")
