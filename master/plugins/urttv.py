@@ -8,7 +8,7 @@ dp = parser()
 GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven', 'addmatch', 'editmatch', 'rmvmatch']
 GTV_PUB_COMMANDS = ["upcoming", "last", "suggest", 'matches']
 
-add_match_usage = 'Usage: !gtv addmatch team1=Blue team2=Red date=dd.mm.yy time=22:30 (GMT +1) league=UZ gtype=CTF'
+add_match_usage = 'Usage: !gtv addmatch team1=Blue team2=Red date=dd.mm.yyyy time=22:30 (GMT +1) league=UZ gtype=CTF'
 
 def getOrdredList(keys): #shitty code works :D
     li = {}
