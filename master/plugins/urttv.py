@@ -5,8 +5,8 @@ import time, datetime
 P = Plugin(A, "UrTTV", 0.1, "B1naryTh1ef")
 dp = parser()
 
-GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven']
-GTV_PUB_COMMANDS = ["upcoming", "last", "suggest"]
+GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven', 'addmatch', 'editmatch', 'rmvmatch']
+GTV_PUB_COMMANDS = ["upcoming", "last", "suggest", 'matches']
 
 add_match_usage = 'Usage: !gtv addmatch team1=Blue team2=Red date=11/11/11 time=20:30 (GMT +1) league=UZ gtype=CTF'
 
