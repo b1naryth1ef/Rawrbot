@@ -100,8 +100,8 @@ def cmdGTV(obj):
             if i not in obj.kwargs.keys():
                 return obj.reply(add_match_usage)
             vals[i] = obj.kwargs[i]
-            id, v = addMatch(vals)
         vals['utime'] = time.mktime((dp.parse('%s %s' % (vals['date'], vals['time']))+datetime.timedelta(hours=1)).timetuple())
+        id, v = addMatch(vals)
         if v:
             vals['id'] = id
             return obj.reply('Added GTV match #{id}: {team1} vs {team2} @ {time} ({date}) [{league}|{gtype}]'.format(**vals))
