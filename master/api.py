@@ -79,6 +79,7 @@ class Plugin():
             self.api.plugins[self.realname] = self
 
     def loaded(self, plug, mod):
+        print plug, mod
         self.mod = mod
         self.plug = plug
 
@@ -221,7 +222,7 @@ class API(object):
             if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
                 if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
                     print obj.admin, obj.globaladmin
-                    return self.pcmdMsg(obj, data, "You must be an %sadmin to use that command!" % ("global " if obj._cmd['gadmin'] else ""))
+                    return self.pcmdMsg(obj, data, "You must be %sadmin to use that command!" % ("a global " if obj._cmd['gadmin'] else "an "))
             if obj._cmd['op'] and not obj.isOp:
                 return self.pcmdMsg(obj, data, "You must be a channel operator to use that command!")
             if obj._cmd['kwargs']:

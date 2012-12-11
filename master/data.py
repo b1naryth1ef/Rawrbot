@@ -1,18 +1,4 @@
 import redis, json, os
-from peewee import *
-
-db = SqliteDatabase('test.db', threadlocals=True)
-
-class DBModel(Model):
-    class Meta():
-        database = db
-
-class User(DBModel):
-    name = CharField()
-    host = CharField()
-    created = DateTimeField()
-    locked = BooleanField()
-User.create_table(True)
 
 class ConfigFile(object):
     def __init__(self, name='config', path=['.'], default={}):
@@ -46,10 +32,10 @@ class ConfigFile(object):
             for key in a:
                 if isinstance(key, dict): continue
                 if key not in b:
-                    if rmv: 
+                    if rmv:
                         print 'Removing key %s' % key
                         mark.append(key)
-                    else: 
+                    else:
                         print 'Adding key %s' % key
                         b[key] = a[key]
                 if key in b and isinstance(b[key], dict):
@@ -62,7 +48,7 @@ class ConfigFile(object):
 
     def __getitem__(self, attr):
         return self.config[attr]
-   
+
     def __getattr__(self, attr):
         if attr in self.config.keys():
             return self.config[attr]

@@ -1,9 +1,26 @@
 from api import Plugin, A
+from dateutil.parser import parser
+import time, datetime
 
 P = Plugin(A, "UrTTV", 0.1, "B1naryTh1ef")
+dp = parser()
 
 GTV_COMMANDS = ['servers', 'addserver', 'rmvserver', 'editserver', 'seven']
 GTV_PUB_COMMANDS = ["upcoming", "last", "suggest"]
+
+add_match_usage = 'Usage: !gtv addmatch team1=Blue team2=Red date=11/11/11 time=20:30 (GMT +1) league=UZ gtype=CTF'
+
+def getOrdredList(keys): #shitty code works :D
+    li = {}
+    for key in keys:
+        v = A.red.hgetall(key)
+        li[int(v['id'])] = v
+    li = li.keys()
+    li.sort()
+    res = []
+    for k in li:
+        res.append(li[k])
+    return res
 
 def editGtvServer(id, kwargs):
     return A.red.hmset('i.p.urttv.server.%s' % id, kwargs)
@@ -14,20 +31,16 @@ def addGtvServer(kwargs):
         kwargs['id'] = id
     return kwargs['id'], A.red.hmset('i.p.urttv.server.%s' % kwargs['id'], kwargs)
 
-def getGtvServers():
-    servers = {}
-    for key in A.red.keys('i.p.urttv.server.*'):
-        v = A.red.hgetall(key)
-        servers[int(v['id'])] = v
-    li = servers.keys()
-    li.sort()
-    res = []
-    for k in li:
-        res.append(servers[k])
-    return res
 
-def editMatch(id, kwargs): pass
-def addMatch(kwargs): pass
+def editMatch(id, kwargs):
+    return A.red.hmset('i.p.urttv.match.%s' % id, kwargs)
+
+def addMatch(kwargs):
+    if not kwargs['id']:
+        id = A.red.incr('i.p.urttv.matchid')
+        kwargs['id'] = id
+    return kwargs['id'], A.red.hmset('i.p.urttv.match.%s' % kwargs['id'], kwargs)
+
 def getMatches(): pass
 
 #!gtv
@@ -40,7 +53,7 @@ def cmdGTV(obj):
     if obj.m[1] in GTV_COMMANDS and not (obj.admin or obj.globaladmin): return obj.reply('You must be an admin to do that!')
     if obj.m[1] == 'seven' and obj.nick.lower() == 'sevenofnine': return obj.reply("You sexy thing <3")
     if obj.m[1] == 'servers':
-        x = getGtvServers()
+        x = getOrdredList(A.red.keys('i.p.urttv.server.*'))
         if x and len(x):
             obj.reply('GTV Servers: ')
             for i in x:
@@ -69,7 +82,7 @@ def cmdGTV(obj):
         if suc: return obj.reply('Added GTV server #%s!' % id)
         else: return obj.reply('Failed to add GTV server!')
     elif obj.m[1] == 'editserver':
-        if len(obj.m) < 3: return obj.reply('Usage: !editserver id ip=127.0.0.1 cam=CAMPASS admin=ADMINPASS pw=SERVERPASS host=HOSTERNAME')
+        if len(obj.m) < 3: return obj.reply('Usage: !gtv editserver id ip=127.0.0.1 cam=CAMPASS admin=ADMINPASS pw=SERVERPASS host=HOSTERNAME')
         vals = {}
         for i in ['ip', 'cam', 'admin', 'pw', 'host']:
             if i in obj.kwargs.keys():
@@ -80,7 +93,29 @@ def cmdGTV(obj):
             else:
                 return obj.reply('Error editing server #%s!' % obj.m[2])
         else: return obj.reply('No server with ID #%s!' % obj.m[2])
-    elif obj.m[1] == 'addmatch': pass
+    elif obj.m[1] == 'addmatch':
+        if len(obj.m) < 3: return obj.reply(add_match_usage)
+        vals = {}
+        for i in ['team1', 'team2', 'date', 'time', 'league', 'gtype']:
+            if i not in obj.kwargs.keys():
+                return obj.reply(add_match_usage)
+            vals[i] = obj.kwargs[i]
+            id, v = addMatch(vals)
+        vals['utime'] = time.mktime((dp.parse('%s %s' % (vals['date'], vals['time']))+datetime.timedelta(hours=1)).timetuple())
+        if v:
+            vals['id'] = id
+            return obj.reply('Added GTV match #{id}: {team1} vs {team2} @ {time} ({date}) [{league}|{gtype}]'.format(**vals))
+        else:
+            return obj.reply("Error adding GTV match!")
     elif obj.m[1] == 'rmvmatch': pass
     elif obj.m[1] == 'editmatch': pass
-    elif obj.m[1] == 'matches': pass
+    elif obj.m[1] == 'matches':
+        keys = []
+        for i in A.red.keys('i.p.urttv.match.*'):
+            if int(A.hget(i, 'utime')) > time.time():
+                keys.append(i)
+        x = getOrdredList(keys)
+        if x and len(x):
+            obj.reply('GTV Matches: ')
+            for i in x:
+                obj.smu("  #{id}: {team1} vs {team2} @ {time} ({date}) [{league}|{gtype}]".format(**i))

@@ -40,8 +40,8 @@ def coreLoop():
             msg = '%s IS LIVE NOW: %s' % (chan['name'].upper(), r[0]['title'])
             spams = []
             A.red.set('i.p.scer.%s.live' % chan['id'], 1)
-            if config.spam:
-                for spam in config.spams:
+            if chan['spam']:
+                for spam in chan['spams']:
                     spams.append(A.callHook('core_spam_add', chan['nid'], msg, spam['chans'], -1, spam['delay'], active=0))
             A.write(chan['nid'], chan['chan'], "The stream '%s' has gone live!" % chan['name'])
             if len(spams):
