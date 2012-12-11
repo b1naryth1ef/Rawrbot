@@ -112,7 +112,7 @@ def cmdGTV(obj):
     elif obj.m[1] == 'matches':
         keys = []
         for i in A.red.keys('i.p.urttv.match.*'):
-            if int(A.hget(i, 'utime')) > time.time():
+            if int(A.red.hget(i, 'utime')) > time.time():
                 keys.append(i)
         x = getOrdredList(keys)
         if x and len(x):
