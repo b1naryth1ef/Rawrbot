@@ -82,6 +82,7 @@ class Plugin():
         print plug, mod
         self.mod = mod
         self.plug = plug
+        if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
     def apih(self, name):
         def deco(func):
@@ -114,10 +115,10 @@ class Plugin():
         self.unload()
         self.plug = reload(self.plug)
         #self.plug.plugin = self
-        if hasattr(self.mod, 'onLoad'): self.onLoad()
+        if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
     def unload(self):
-        if hasattr(self.mod, 'onUnload'): self.onUnload()
+        if hasattr(self.mod, 'onUnload'): self.mod.onUnload()
         for i in self.cmds:
             self.api.rmvCommand(i)
         for i in self.hooks:

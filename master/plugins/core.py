@@ -154,7 +154,7 @@ def cmdConfig(obj):
     if len(obj.m) < 3: return obj.usage()
     if obj.kwargs.get('value', None) == None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
     v = obj.m[2].strip().lower()
-    if v not in A.configs: return obj.reply('Unknown config option %s!')
+    if v not in A.configs: return obj.reply('Unknown config option %s!' % v)
     k = 'i.%s.chan.%s.cfg.%s' % (obj.nid, obj.dest.replace('#', ''), v)
     if obj.m[1] == 'set':
         A.red.set(k, int(obj.kwargs.get('value')))
