@@ -65,6 +65,7 @@ class Plugin():
         self.api = api
         self.realname = name.lower().replace(' ', '')
         self.mod = None
+        self.plug = None
         self.name = name
         self.version = version
         self.author = author
@@ -72,10 +73,15 @@ class Plugin():
         self.cmds = []
         self.hooks = []
 
-        self.api.plugins[self.realname] = self
+        if self.realname in self.api.plugins:
+            self = self.api.plugins[self.realname]
+        else:
+            self.api.plugins[self.realname] = self
 
-    def loaded(self, mod):
+    def loaded(self, plug, mod):
+        print plug, mod
         self.mod = mod
+        self.plug = plug
 
     def apih(self, name):
         def deco(func):
@@ -106,8 +112,8 @@ class Plugin():
 
     def reload(self):
         self.unload()
-        self.mod = reload(self.mod)
-        self.mod.plugin = self
+        self.plug = reload(self.plug)
+        #self.plug.plugin = self
         if hasattr(self.mod, 'onLoad'): self.onLoad()
 
     def unload(self):
@@ -130,7 +136,6 @@ class API(object):
         self.apis = {}
         self.hooks = {}
         self.loops = []
-        self.maintence = False
         self.canLoop = False
 
     def addConfig(self, opt):
@@ -169,18 +174,19 @@ class API(object):
         self.red.rpush('i.%s.worker.%s' % (m['nid'], m['id']), json.dumps(msg))
 
     def isAdmin(self, data):
+        nick = data['nick'].lower()
         print 'Admin check: %s' % data['nick']
         if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
             return True, True
-        if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower())):
-            if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
+        if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], nick)):
+            if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], nick)):
                 m = {'tag': 'WHOIS', 'nick': data['nick']}
                 self.red.rpush('i.%s.worker.%s' % (data['nid'], data['id']), json.dumps(m))
                 for i in range(1, 20):
-                    if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], data['nick'].lower())):
+                    if not self.red.exists('i.%s.user.%s.whoisd' % (data['nid'], nick)):
                         time.sleep(.5)
                     else: break
-        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], data['nick'].lower()))
+        v = self.red.get('i.%s.user.%s.auth' % (data['nid'], nick))
         if v: v = v.lower()
         b = self.red.sismember('i.%s.admins' % (data['nid']), v)
         c = self.red.sismember('i.%s.chan.%s.admins' % (data['nid'], data['dest']), v)
@@ -191,6 +197,10 @@ class API(object):
     def isOp(self, net, chan, nick):
         return A.red.sismember('i.%s.chan.%s.ops' % (net, chan), nick)
 
+    def pcmdMsg(self, obj, data, msg):
+        if obj.pm: self.writeUser(data, data['nick'], msg)
+        else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
+
     def parseCommand(self, data):
         m = data['msg'].split(' ')
         obj = FiredCommand(self, m[0][len(self.prefix):], data)
@@ -199,31 +209,25 @@ class API(object):
         if _v and not int(_v) and not obj._cmd['always']: return
         obj.m = m
         obj._prefix = self.prefix
-        #obj.admin, obj.globaladmin = self.isAdmin(data) #self.isAdmin(data['nid'], data['host'])
+        obj.admin, obj.globaladmin = self.isAdmin(data)
         obj.op = self.red.sismember('i.%s.chan.%s.ops' % (data['nid'], data['dest'].replace('#', '')), data['nick'].lower())
         if data['nick'] == data['dest']: obj.pm = True
         else: obj.pm = False
         if obj._cmd:
-            if self.maintence and not obj.admin: return #Dont even reply
+            _b = A.red.get("i.maintmode")
+            b = int(_b) if _b and _b.isdigit() else False
+            if b and not obj.admin: return #Dont even reply
+            if len(obj._cmd['chans']) and data['dest'].replace('#', '') not in obj._cmd['chans']:
+                return self.pcmdMsg(obj, data, "That command is not enabled in this channel!")
             if len(self.master.networks[data['nid']].plugins):
                 if obj._cmd['plug'].realname not in self.master.networks[data['nid']].plugins:
-                    msg = "That command is not enabled here!"
-                    if obj.pm: self.writeUser(data, data['nick'], msg)
-                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                    return
+                    return self.pcmdMsg(obj, data, "That command is not enabled on this network!")
             if obj._cmd['admin'] is True or obj._cmd['gadmin'] is True:
-                v = self.isAdmin(data)
-                obj.admin, obj.globaladmin = v
                 if obj._cmd['admin'] and not obj.admin or obj._cmd['gadmin'] and not obj.globaladmin:
-                    msg = "You must be an admin to use that command!"
-                    if obj.pm: self.writeUser(data, data['nick'], msg)
-                    else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                    return
+                    print obj.admin, obj.globaladmin
+                    return self.pcmdMsg(obj, data, "You must be %sadmin to use that command!" % ("a global " if obj._cmd['gadmin'] else "an "))
             if obj._cmd['op'] and not obj.isOp:
-                msg = "You must be an op to use that command!"
-                if obj.pm: self.writeUser(data, data['nick'], msg)
-                else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
-                return False
+                return self.pcmdMsg(obj, data, "You must be a channel operator to use that command!")
             if obj._cmd['kwargs']:
                 obj.kwargs = dict(re.findall(r'([^ \=]+)\=[ ]*(.+?)?(?:(?= [^ \\]+\=)|$)', ' '.join(m[1:])))
                 for i in obj._cmd['kbool']:
@@ -239,7 +243,6 @@ class API(object):
                             else: self.write(data['nid'], data['dest'], '%s: %s' % (data['nick'], msg))
                             return
             thread.start_new_thread(obj._cmd['f'], (obj,))
-            #del obj #Cleanup (do we need to do this? maybe not...)
             return True
         else:
             _v = A.red.get('i.%s.chan.%s.cfg.badcmd' % (data['nid'], data['dest'].replace('#', '')))
@@ -252,8 +255,10 @@ class API(object):
             self.red.set('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), time.time())
             self.red.expire('i.%s.lastsenterr.%s' % (data['nid'], data['nick'].lower()), 30)
 
-    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False):
-        if name in self.commands.keys(): raise Exception('Command with name %s already exists!' % name)
+    #@TODO Clean this WHOLE thing up (gonna suck, ik)
+    def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False, chans=[]):
+        if name in self.commands.keys(): 
+            raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug': plugin,
             'f': func,
@@ -267,7 +272,7 @@ class API(object):
             'op': op,
             'nolist': nolist,
             'always': always,
-        }
+            'chans': chans}
 
         for i in alias:
             self.alias[i] = name
@@ -307,20 +312,20 @@ class API(object):
             if not i[0] in ['.', '_'] and i.endswith('.py'):
                 i = i.split('.py')[0]
                 if self.hasPlugin(i): continue
-                __import__('plugins.%s' % i, globals(), locals(), [], -1)
-                self.loadPlugin(i)
+                plug = __import__('plugins.%s' % i)
+                self.loadPlugin(plug, i)
 
     def hasPlugin(self, name):
         if name in self.plugins.keys():
             return True
         return False
 
-    def loadPlugin(self, f):
+    def loadPlugin(self, plug, f):
         mod = sys.modules['plugins.%s' % f]
         if hasattr(mod, 'onBoot'): mod.onBoot()
         if f in self.plugins:
             print 'Calling .loaded() of %s' % f
-            self.plugins[f].loaded(mod)
+            self.plugins[f].loaded(plug, mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
         for i in self.loops:

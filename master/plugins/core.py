@@ -43,6 +43,10 @@ def rmvAdmin(obj):
     else:
         return obj.reply('User %s is not an admin!' % obj.m[1].lower())
 
+@P.cmd('info')
+def cmdInfo(obj):
+    obj.smu("\x033RawrBot Info\x03: https://gist.github.com/d6c95c0733a5d9ef8c13")
+
 card_key = {11: 'jack', 12: 'queen', 13: 'king', 1: 'ace'}
 @P.cmd('hit')
 def cmdHit(obj):
@@ -136,7 +140,7 @@ def cmdOpme(obj):
 @P.cmd('maintence', gadmin=True, usage='{cmd} set={bool}, msg=A spam message', kwargs=True, kbool=['set'], desc="Enable/Disable the bot maintence mode.", alias=['safemode'])
 def cmdMaintence(obj):
     if not 'set' in obj.kwargs: return obj.usage()
-    A.red.publish('irc.m', json.dumps({'tag': 'MAINTENCE', 'mode': obj.kwargs.get('set', False)}))
+    A.red.set("i.maintmode", int(obj.kwargs.get('set', False)))
     if obj.kwargs.get('set'): obj.reply('We are now in maintence mode! Only admins may use commands.')
     else: obj.reply('Maintence mode deactivated! All users may use commands.')
     if obj.kwargs.get('msg'):
@@ -144,7 +148,7 @@ def cmdMaintence(obj):
         for chan in A.red.smembers('i.%s.chans' % obj.nid):
             obj.send(chan, obj.kwargs.get('msg'))
 
-@P.cmd('config', usage="{cmd} [set/get] key value={bool}", admin=True, kwargs=True, kbool=['value'], always=True)
+@P.cmd('config', usage="{cmd} [set/get] key value={bool}", gadmin=True, kwargs=True, kbool=['value'], always=True)
 def cmdConfig(obj):
     #if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
