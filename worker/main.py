@@ -53,7 +53,7 @@ class Worker(object):
                 self.quit("Master ping-out")
 
     def getChanReads(self, *args):
-        return ['i.%s.chan.%s' % (self.nid, i.replace('#', '')) for i in self.channels]+list(args)
+        return ['i.%s.chan.%s' % (self.nid, i.replace('#', '').lower()) for i in self.channels]+list(args)
 
     def sendNames(self, chan, names):
         self.p('NAMES', chan=chan, nicks=names)
@@ -63,7 +63,7 @@ class Worker(object):
         if m[0] == "PING":
             self.lastPong = time.time()
             return self.c.write('PONG')
-        print msg
+        #print msg
         if "@" not in m[0] and len(m) > 1:
             if m[1] == "353": #NAMES
                 m = m[2].split(' ', 3)
@@ -187,7 +187,7 @@ class Worker(object):
                 self.push('PONG')
             elif q['tag'] == 'RAW':
                 self.write(q['msg'])
-            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'].lower(), q['msg']))
+            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
                 self.getWhois(q['nick'].lower())
