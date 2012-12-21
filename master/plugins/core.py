@@ -166,13 +166,16 @@ def cmdSecret(obj):
         return obj.raw('KICK %s %s :%s' % (obj.dest, obj.nick, 'Congrats! You found the secret!'))
     obj.reply('I DONT KNOW WHAT YOUR TALKING ABOUT!')
 
-@P.cmd('join', gadmin=True, usage="{cmd} <chan>")
+@P.cmd('join', gadmin=True, usage="{cmd} <chan> [pw]")
 def cmdJoin(obj):
     if len(obj.m) < 2: return obj.usage()
     else:
+        pw = ''
+        if len(obj.m) > 3:
+            pw = obj.m[2]
         chan = obj.m[1].replace('#', '').lower()
         if not A.red.sismember('i.%s.chans'% obj.nid, chan):
-            A.red.publish('irc.master', json.dumps({'tag': 'JOIN', 'chan': chan, 'nid': obj.nid}))
+            A.red.publish('irc.master', json.dumps({'tag': 'JOIN', 'chan': chan, 'nid': obj.nid, 'pw':pw}))
             return obj.reply('Bot has joined channel "#%s"' % chan)
         obj.reply('The bot is already in channel "#%s"!' % chan)
 

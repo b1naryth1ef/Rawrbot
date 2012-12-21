@@ -133,6 +133,9 @@ class API(object):
         self.maintence = False
         self.canLoop = False
 
+    def addConfig(self, opt):
+        self.configs.append(opt)
+
     def callHook(self, hook, *args, **kwargs):
         if hook in self.apis.keys():
             return self.apis[hook](*args, **kwargs)
