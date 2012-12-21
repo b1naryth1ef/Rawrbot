@@ -88,7 +88,7 @@ def cmdDerp(obj):
     elif obj.m[1] == 'ictere': return obj.reply("The laws of physics make your statement incorrect.")
     elif obj.m[1] == 'scuba': return obj.reply('ROBOTS!')
     elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
-    elif obj.m[1] == 'b00bs': return obj.reply("B00bs clan, runing UrT and banning innocents sense forever.")
+    elif obj.m[1] == 'b00bs': return obj.reply("B00bs clan, ruining UrT and banning innocents sense forever.")
 
 @P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", gadmin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
