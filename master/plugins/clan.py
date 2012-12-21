@@ -25,11 +25,13 @@ def genMessage(args):
     else: msg.append('{gm}')
     return ' '.join(msg).format(**args)
 
-def onLoad(): #@DEV stacks up, unload call?
-    A.addConfig('clanspam')
+# def onLoad(): #@DEV stacks up, unload call?
+#     print 'Loaded!'
+#     A.addConfig('clanspam')
 
-def onUnload():
-    A.rmvConfig('clanspam')
+# def onUnload():
+#     print 'Unloaded!'
+#     A.rmvConfig('clanspam')
 
 @P.apih('clan_spam_msg')
 def clanSpam(net, msg, force):
