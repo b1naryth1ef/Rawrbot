@@ -139,7 +139,12 @@ class API(object):
         self.canLoop = False
 
     def addConfig(self, opt):
-        self.configs.append(opt)
+        if opt not in self.configs:
+            self.configs.append(opt)
+
+    def rmvConfig(self, opt):
+        if opt in self.configs:
+            self.configs.remove(opt)
 
     def callHook(self, hook, *args, **kwargs):
         if hook in self.apis.keys():

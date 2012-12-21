@@ -9,19 +9,24 @@ P = Plugin(A, "Clans", 0.1, "B1naryTh1ef")
 
 #!cws practice=bool ignore=#chana, #chanb, #chanc
 #!addcw players=X gm=CTF notes=blah blah blah
+#[#owls-team] (PRACTICE) 5v5 TS: "My notes here"
 
 def genMessage(args):
     msg = []
+    msg.append('CLAN WAR:')
     msg.append('[{chan}]')
     if args['practice']:
         msg.append('(PRACTICE)')
-    msg.append('{nump}vs{nump} {gm}')
-    if args['notes']:
-        msg.append(': {notes}')
+    msg.append('{nump}vs{nump}')
+    if args['notes']: msg.append('{gm}: "{notes}"')
+    else: msg.append('{gm}')
     return ' '.join(msg).format(**args)
 
-def onLoad():
+def onLoad(): #@DEV stacks up, unload call?
     A.addConfig('clanspam')
+
+def onUnload():
+    A.rmvConfig('clanspam')
 
 @P.apih('clan_spam_msg')
 def clanSpam(net, msg, force):
@@ -42,15 +47,15 @@ def getClanWars():
 
 @P.cmd('cws', usage="{cmd} practice={bool}", kwargs=True, kbool=['practice'])
 def cmdCWS(obj):
-    res = getClanWars()[30:]
+    res = getClanWars()
     if len(res):
         obj.reply('Clan Wars: ')
         for cw in res:
+            if obj.kwargs.get('practice') and not obj.kwargs.get('practice') == cw['practice']: continue
             obj.smu('  '+genMessage(cw))
             time.sleep(0.3)
     else:
         obj.reply('No clan wars!')
-# [#owls-team] (PRACTICE) 5v5 TS: "My notes here"
 
 @P.cmd('addcw', usage="{cmd} practice={bool} players=X gm=CTF/TS/BOMB notes=This is an awesome clan war opportunity!", kwargs=True, kbool=['practice'])
 def cmdAddCw(obj):
@@ -59,6 +64,8 @@ def cmdAddCw(obj):
     if not 'players' in obj.kwargs or not 'gm' in obj.kwargs: return obj.usage()
     if A.red.exists('i.p.clan.cw.%s' % obj.dest):
         return obj.reply("You've already spammed a cw or pcw in the past 15 minutes! Please wait before spamming again!")
+    if not obj.kwargs.get('players').isdigit():
+        return obj.reply("Players must be an INTEGER value (a number ;D)")
     cw = {'nump': obj.kwargs.get('players'),
         'gm': obj.kwargs.get('gm'),
         'notes': obj.kwargs.get("notes"),
@@ -68,3 +75,8 @@ def cmdAddCw(obj):
     A.red.expire('i.p.clan.cw.%s' % obj.dest, 900)
     a, s = A.callHook('clan_spam_msg', obj.nid, genMessage(cw), False)
     obj.reply('Your clan war was spammed to %s out of %s channels!' % (s, a))
+
+@P.cmd('rmvcw')
+def cmdRmvCw(obj):
+    if not A.red.exists('i.p.clan.cw.%s' % obj.dest):
+        return obj.reply('No spam exists for this channel!')
