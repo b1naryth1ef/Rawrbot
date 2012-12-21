@@ -54,7 +54,6 @@ class FiredCommand(FiredEvent):
 
     def send(self, chan, msg): #@TODO Check if valid channel?
         k = {'tag': 'MSG', 'chan': chan.replace('#', ''), 'msg': msg}
-        print k
         self._api.red.rpush('i.%s.chan.%s' % (self.nid, k['chan']), json.dumps(k))
 
     def raw(self, msg):

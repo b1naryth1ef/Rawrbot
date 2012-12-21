@@ -177,6 +177,7 @@ class Worker(object):
             except:
                 print "Bad message: %s" % q
                 continue
+            print q
             if q['tag'] != 'PING': print '[%s] => %s' % (q['tag'], q)
             if q['tag'] == 'PART': self.part(q['chan'], q['msg'])
             elif q['tag'] == 'JOIN': self.join(q['chan'], q['pw'])
@@ -186,7 +187,7 @@ class Worker(object):
                 self.push('PONG')
             elif q['tag'] == 'RAW':
                 self.write(q['msg'])
-            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'], q['msg']))
+            elif q['tag'] == "MSG": self.write('PRIVMSG #%s :%s' % (q['chan'].lower(), q['msg']))
             elif q['tag'] == "PM": self.write('PRIVMSG %s :%s' % (q['nick'], q['msg']))
             elif q['tag'] == 'WHOIS':
                 self.getWhois(q['nick'].lower())
