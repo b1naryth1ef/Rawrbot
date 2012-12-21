@@ -11,9 +11,12 @@ P = Plugin(A, "Clans", 0.1, "B1naryTh1ef")
 #!addcw players=X gm=CTF notes=blah blah blah
 #[#owls-team] (PRACTICE) 5v5 TS: "My notes here"
 
+def getID():
+    return A.red.incr('i.p.clan.cwinc')
+
 def genMessage(args):
     msg = []
-    msg.append('CLAN WAR:')
+    msg.append('CLAN WAR #{id}:')
     msg.append('[{chan}]')
     if args['practice']:
         msg.append('(PRACTICE)')
@@ -42,6 +45,7 @@ def clanSpam(net, msg, force):
 def getClanWars():
     res = []
     for key in A.red.keys('i.p.clan.cw.*'):
+        if not A.red.type(key) == 'hash': continue #get around 'NULL' keys
         res.append(A.red.hgetall(key))
     return res
 
@@ -70,13 +74,20 @@ def cmdAddCw(obj):
         'gm': obj.kwargs.get('gm'),
         'notes': obj.kwargs.get("notes"),
         'practice': obj.kwargs.get('practice', False),
-        'chan': obj.dest}
+        'chan': obj.dest,
+        'id': getID()}
     A.red.hmset('i.p.clan.cw.%s' % obj.dest, cw)
     A.red.expire('i.p.clan.cw.%s' % obj.dest, 900)
     a, s = A.callHook('clan_spam_msg', obj.nid, genMessage(cw), False)
-    obj.reply('Your clan war was spammed to %s out of %s channels!' % (s, a))
+    obj.reply('Your clan (ID #%s) war was spammed to %s out of %s channels!' % (cw['id'], s, a))
 
 @P.cmd('rmvcw')
 def cmdRmvCw(obj):
-    if not A.red.exists('i.p.clan.cw.%s' % obj.dest):
+    s = 'i.p.clan.cw.%s' % obj.dest
+    if not A.red.exists(s):
         return obj.reply('No spam exists for this channel!')
+    delay = A.red.ttl(s)
+    A.red.delete(s)
+    A.red.set(s, 'NULL')
+    A.red.expire(s, delay)
+    obj.reply('Deleted your current clan war!')
