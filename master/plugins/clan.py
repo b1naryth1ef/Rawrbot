@@ -42,10 +42,14 @@ def getClanWars():
 
 @P.cmd('cws', usage="{cmd} practice={bool}", kwargs=True, kbool=['practice'])
 def cmdCWS(obj):
-    obj.reply('Clan Wars: ')
-    for cw in getClanWars()[30:]:
-        obj.smu('  '+genMessage(cw))
-        time.sleep(0.3)
+    res = getClanWars()[30:]
+    if len(res):
+        obj.reply('Clan Wars: ')
+        for cw in res:
+            obj.smu('  '+genMessage(cw))
+            time.sleep(0.3)
+    else:
+        obj.reply('No clan wars!')
 # [#owls-team] (PRACTICE) 5v5 TS: "My notes here"
 
 @P.cmd('addcw', usage="{cmd} practice={bool} players=X gm=CTF/TS/BOMB notes=This is an awesome clan war opportunity!", kwargs=True, kbool=['practice'])
@@ -53,14 +57,14 @@ def cmdAddCw(obj):
     if not obj.op:
         return obj.reply("You must be an admin of the channel to request a cw or pcw!")
     if not 'players' in obj.kwargs or not 'gm' in obj.kwargs: return obj.usage()
-    if A.red.exists('i.p.clan.cw.%s' % obj.chan):
+    if A.red.exists('i.p.clan.cw.%s' % obj.dest):
         return obj.reply("You've already spammed a cw or pcw in the past 15 minutes! Please wait before spamming again!")
     cw = {'nump': obj.kwargs.get('players'),
         'gm': obj.kwargs.get('gm'),
         'notes': obj.kwargs.get("notes"),
         'practice': obj.kwargs.get('practice', False),
-        'chan': obj.chan}
-    A.red.hmset('i.p.clan.cw.%s' % obj.chan, cw)
-    A.red.expire('i.p.clan.cw.%s' % obj.chan, 900)
-    a, s = A.callHook('clan_spam_msg', obj.nid, genMessage(cw))
+        'chan': obj.dest}
+    A.red.hmset('i.p.clan.cw.%s' % obj.dest, cw)
+    A.red.expire('i.p.clan.cw.%s' % obj.dest, 900)
+    a, s = A.callHook('clan_spam_msg', obj.nid, genMessage(cw), False)
     obj.reply('Your clan war was spammed to %s out of %s channels!' % (s, a))
