@@ -64,7 +64,7 @@ def cmdDerp(obj):
 @P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", gadmin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
     obj.reply('Pulling update from git...')
-    l = os.popen('git pull origin master').readlines()
+    l = os.popen('git pull origin dev').readlines()
     if obj.kwargs.get('verbose'):
         for i in l:
             obj.pmu(i.strip())
