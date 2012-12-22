@@ -58,7 +58,7 @@ def cmdKick(obj):
 def cmdBug(obj):
     if len(obj.m) < 2: return obj.usage()
     if not obj.op: return obj.reply('Sorry, but only channel ops can submit bug reports (This is to reduce spam! If the problem is urgent, use !report)')
-    result, id = adminAddReport('[BUG]'+obj.m[1:], obj.nick, obj._data.get('dest'), obj.nid)
+    result, id = adminAddReport('[BUG]'+' '.join(obj.m[1:]), obj.nick, obj._data.get('dest'), obj.nid)
     if not result: return obj.reply("There was an error filing your bug (Ironic isnt it?)")
     return obj.reply("Your bug report was filed! (For reference, its bug report #%s!)" % id)
 

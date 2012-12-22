@@ -73,9 +73,6 @@ def cmdUpdate(obj):
         return obj.reply("No updates availible from git!")
     A.red.set("i.maintmode", int(1))
     obj.reply("An update was found on the git repo!")
-    l = os.popen('git show').readlines()
-    if l:
-        obj.reply("Latest commit is now: %s (%s)" % (l[0].split(' ')[1][6:], l[4].strip()))
     obj.reply('Updating and reloading...')
     A.reloadPlugins(obj.reply, 'Update complete!')
     A.red.set("i.maintmode", int(0))
