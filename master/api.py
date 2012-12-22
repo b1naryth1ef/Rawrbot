@@ -119,7 +119,7 @@ class Plugin():
         return hook
 
     def reload(self):
-        print type(self.mod), self.realname
+        if not self.mod: return
         self.unload()
         self.mod = reload(self.mod)
         self.mod.plugin = self
