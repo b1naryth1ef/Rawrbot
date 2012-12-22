@@ -61,16 +61,18 @@ def cmdDerp(obj):
     elif obj.m[1] == 'b1n': return obj.reply('B1N IS AMAZING AND WONDERFUL AND DIDNT WRITE THIS AND OMG HE\'S SO GREAT LIKE RLLY!')
     elif obj.m[1] == 'b00bs': return obj.reply("B00bs clan, ruining UrT and banning innocents sense forever.")
 
-@P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", gadmin=True, kwargs=True, kbool=['verbose', 'reload'])
+@P.cmd('update', usage="{cmd} verbose={bool}", gadmin=True, kwargs=True, kbool=['verbose'])
 def cmdUpdate(obj):
-    obj.reply('Pulling update from git...')
+    obj.reply('Searching for updates on the git repo...')
     l = os.popen('git pull origin dev').readlines()
+    if 'Already up-to-date.\n' in l:
+        return obj.reply("No updates availible from git!")
+    obj.reply("An update was found on the git repo!")
     if obj.kwargs.get('verbose'):
         for i in l:
             obj.pmu(i.strip())
-    if obj.kwargs.get('reload'):
-        obj.reply('Reloading plugins...')
-        A.reloadPlugins(obj.reply, 'Reloaded all plugins!')
+    obj.reply('Updating and reloading...')
+    A.reloadPlugins(obj.reply, 'Update complete!')
 
 @P.cmd('about')
 def cmdAbout(obj):
