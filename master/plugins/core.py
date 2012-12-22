@@ -157,7 +157,7 @@ def cmdJoin(obj):
             pw = obj.m[2]
         chan = obj.m[1].replace('#', '').lower()
         if not A.red.sismember('i.%s.chans'% obj.nid, chan):
-            A.red.publish('irc.master', json.dumps({'tag': 'JOIN', 'chan': chan, 'nid': obj.nid, 'pw':pw}))
+            A.red.publish('irc.master', json.dumps({'tag': 'JOIN', 'chan': chan, 'nid': obj.nid, 'pw': pw}))
             return obj.reply('Bot has joined channel "#%s"' % chan)
         obj.reply('The bot is already in channel "#%s"!' % chan)
 

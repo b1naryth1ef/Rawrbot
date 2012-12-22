@@ -271,7 +271,7 @@ class API(object):
 
     #@TODO Clean this WHOLE thing up (gonna suck, ik)
     def addCommand(self, plugin, name, func, admin=False, kwargs=False, kbool=[], usage="", alias=[], desc="", op=False, nolist=False, always=False, gadmin=False, chans=[]):
-        if name in self.commands.keys(): 
+        if name in self.commands.keys():
             raise Exception('Command with name %s already exists!' % name)
         self.commands[name] = {
             'plug': plugin,
