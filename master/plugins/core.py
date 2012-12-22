@@ -51,6 +51,10 @@ def cmdInfo(obj):
 def cmdBeta(obj):
     obj.smu("\x033RawrBot Beta Testing Guide\x03: https://gist.github.com/d73a02ddf9cd17750e9b")
 
+@P.cmd("hoot")
+def cmdHoot(obj):
+    obj.smu('\x036H00t H00t Motherfucker, #owl-team pride!\x03')
+
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
     if len(obj.m) < 2: return
