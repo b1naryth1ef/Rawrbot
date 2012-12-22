@@ -2,7 +2,7 @@
 from api import Plugin, A
 import json, time, random, os
 
-P = Plugin(A, "Core", 0.1, "B1naryTh1ef")
+P = Plugin(A, "Core", 0.2, "B1naryTh1ef")
 
 s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 'refactor', 'git reset --hard']
 s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
@@ -71,12 +71,14 @@ def cmdUpdate(obj):
     l = os.popen('git pull origin dev').readlines()
     if 'Already up-to-date.\n' in l:
         return obj.reply("No updates availible from git!")
+    A.red.set("i.maintmode", int(1))
     obj.reply("An update was found on the git repo!")
     l = os.popen('git show').readlines()
     if l:
         obj.reply("Latest commit is now: %s (%s)" % (l[0].split(' ')[1][6:], l[4].strip()))
     obj.reply('Updating and reloading...')
     A.reloadPlugins(obj.reply, 'Update complete!')
+    A.red.set("i.maintmode", int(0))
 
 @P.cmd('about')
 def cmdAbout(obj):
