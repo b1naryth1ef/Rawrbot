@@ -257,16 +257,27 @@ def cmdStatus(obj): #@TODO Update
     num_masters = A.red.llen('i.masters')
     num_chans, num_useru, num_usert = 0, 0, 0
     for chan in A.red.smembers('i.%s.chans' % obj.nid):
-        num_chans =+ 1
+        num_chans += 1
         num_usert += A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
         A.red.sunionstore('i.temp.res', 'i.%s.chan.%s.users' % (obj.nid, chan), 'i.temp.res')
     num_useru = A.red.scard('i.temp.res')
+    upt = time.time()-float(A.red.get('i.master.uptime'))
     obj.reply('------ STATUS ------')
-    obj.reply(' # of Workers: %s' % num_workers)
-    obj.reply(' # of Masters: %s' % num_masters)
-    obj.reply(' # of Channels: %s' % num_chans)
-    obj.reply(' # of Users: %s' % num_usert)
-    obj.reply(' # of Unique Users: %s' % num_useru)
+    obj.reply("Workers: %s | Masters: %s" % (num_workers, num_masters))
+    obj.reply("Users: %s | Unique: %s | Channels: %s" % (num_usert, num_useru, num_chans))
+    obj.reply("Master uptime: %s" % upt)
+
+@P.cmd('winfo', gadmin=True, usage="{cmd} <wid>", desc="Get info about an single worker")
+def cmdWinfo(obj):
+    if not len(obj.m) > 1: return obj.usage()
+    if not obj.m[1].isdigit(): return obj.reply("Worker ID must be an integer!")
+    if not A.red.sismember('i.%s.workers' % obj.nid, int(obj.m[1])): return obj.reply("No worker with ID #%s!" % obj.m[1])
+    w_chans, w_users = 0, 0
+    for chan in A.red.smembers('i.%s.worker.%s.chans' % (obj.nid, obj.m[1])):
+        w_chans += 1
+        w_users += A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
+    w_uptime = time.time()-float(A.red.get('i.%s.worker.%s.uptime' % (obj.nid, obj.m[1])))
+    return obj.reply("Worker #%s: %s channels, %s users, %s uptime" % (obj.m[1], w_chans, w_users, w_uptime))
 
 @P.cmd('addspam', admin=True, kwargs=True, kbool=['spam'],
     usage='{cmd} msg=A spam message duration=(duration in minutes) time=(time between spam (in minutes)) chans=#chana, #chanb (defaults to all) spam={bool}',

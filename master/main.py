@@ -45,7 +45,7 @@ class Worker(object):
         red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
     def setup(self, reply):
-        red.set('i.%s.worker.uptime', time.time())
+        red.set('i.%s.worker.%s.uptime' % (self.nid, self.id), time.time())
         red.publish(reply, json.dumps({
                 'id': self.id,
                 'nid': self.nid,
@@ -56,6 +56,7 @@ class Worker(object):
         thread.start_new_thread(self.getReady, ())
 
     def join(self, chan, send=True):
+        red.sadd('i.%s.worker.%s.chans' % (self.nid, self.id), chan)
         self.chans.append(chan)
         self.net.channels[chan] = self
         if chan in self.net.pws: pw = red.get('i.%s.chan.%s.pw' % (self.nid, chan))
@@ -63,6 +64,7 @@ class Worker(object):
         if send: self.push('JOIN', chan=chan, pw=pw)
 
     def part(self, chan, msg, send=True):
+        red.srem('i.%s.worker.%s.chans' % (self.nid, self.id), chan)
         self.chans.remove(chan)
         self.net.channels[chan] = None
         if send: self.push('PART', chan=chan, msg=msg)
