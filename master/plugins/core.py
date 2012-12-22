@@ -18,7 +18,7 @@ s_about = [
 
 @P.cmd('addadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def addAdmin(obj):
-    if len(obj.m) < 2: obj.usage()
+    if len(obj.m) < 2: return obj.usage()
     if obj.kwargs.get('chan'):
         s = 'i.%s.chan.%s.admins' % (obj.nid, obj.kwargs.get('chan'))
     else:
@@ -47,38 +47,9 @@ def rmvAdmin(obj):
 def cmdInfo(obj):
     obj.smu("\x033RawrBot Info\x03: https://gist.github.com/d6c95c0733a5d9ef8c13")
 
-card_key = {11: 'jack', 12: 'queen', 13: 'king', 1: 'ace'}
-@P.cmd('hit')
-def cmdHit(obj):
-    last = 0
-    lasts = []
-    card_val = random.randint(1, 13)
-    if card_val in card_key: card_num = card_key[card_val]
-    else: card_num = card_val
-    card_suite = random.choice(['S', 'H', 'D', 'C'])
-    cur_card = '{card}{suite}'.format(card=card_num, suite=card_suite)#.encode('utf-8')
-    lkey = 'i.%s.core.bj.%s.last' % (obj.nid, obj.nick)
-    if A.red.exists(lkey):
-        lasts = list(A.red.smembers(lkey))
-        for i in lasts:
-            if i[:-1] in card_key.keys():
-                last += card_key[i[:-1]]
-            else:
-                last += int(i[:-1])
-    last += card_val
-    obj.reply(u'Card: %s' % cur_card)
-    if lasts:
-        A.red.delete(lkey)
-        obj.reply('Cards [%s]: %s' % (last, ', '.join(lasts+['\x036'+cur_card+'\x03'])))
-    if last == 21:
-        obj.reply('\x033YOU WIN!\x03')
-    elif last > 21:
-        obj.reply('\x034YOU LOOSE!\x03')
-    elif last < 21:
-        obj.reply('\x032Pick Again!\x03')
-        A.red.sadd(lkey, *list([cur_card]+lasts))
-        A.red.expire(lkey, 600)
-    #return obj.reply("YOU WIN! (Yeah still not implemented...)")
+@P.cmd('beta')
+def cmdBeta(obj):
+    obj.smu("\x03RawrBot Beta Testing Guide\x03: https://gist.github.com/d73a02ddf9cd17750e9b")
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
@@ -93,7 +64,7 @@ def cmdDerp(obj):
 @P.cmd('update', usage="{cmd} verbose={bool} reload={bool}", gadmin=True, kwargs=True, kbool=['verbose', 'reload'])
 def cmdUpdate(obj):
     obj.reply('Pulling update from git...')
-    l = os.popen('git pull origin deploy').readlines()
+    l = os.popen('git pull origin master').readlines()
     if obj.kwargs.get('verbose'):
         for i in l:
             obj.pmu(i.strip())
@@ -108,7 +79,7 @@ def cmdAbout(obj):
         obj.pmu('  '+msg)
         time.sleep(1)
 
-@P.cmd('channels', admin=True)
+@P.cmd('channels', gadmin=True)
 def cmdChannels(obj):
     obj.pmu('Channels List: (this may take a second)')
     for chan in A.red.smembers('i.%s.chans' % obj.nid):
@@ -117,7 +88,7 @@ def cmdChannels(obj):
         obj.pmu('[#%s] Users: %s | OPs: %s' % (chan, numu, numop))
         time.sleep(1)
 
-@P.cmd('commands', admin=True)
+@P.cmd('commands', gadmin=True)
 def cmdCommands(obj):
     obj.pmu('Command List: (this may take a second)')
     k = A.commands.keys()

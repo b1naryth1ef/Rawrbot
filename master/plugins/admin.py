@@ -54,7 +54,15 @@ def cmdKick(obj):
         return obj.raw('KICK %s %s :%s' % (obj.dest, obj.m[1], obj.kwargs.get('msg', '')))
     obj.reply('The bot is not an operator, and as such cannot complete your command!')
 
-@P.cmd('report', usage='{cmd} My message to admins',
+@P.cmd('bug', admin=True, usage='{cmd} <msg>', desc="Report a bug!")
+def cmdBug(obj):
+    if len(obj.m) < 2: return obj.usage()
+    if not obj.op: return obj.reply('Sorry, but only channel ops can submit bug reports (This is to reduce spam! If the problem is urgent, use !report)')
+    result, id = adminAddReport('[BUG]'+obj.m[1:], obj.nick, obj._data.get('dest'), obj.nid)
+    if not result: return obj.reply("There was an error filing your bug (Ironic isnt it?)")
+    return obj.reply("Your bug report was filed! (For reference, its bug report #%s!)" % id)
+
+@P.cmd('report', usage='{cmd} <my message to admins>',
     desc="Send a message to the admins (IN ENGLISH), or ask for assistance. (Abuse results in banz!)")
 def cmdReport(obj):
     if len(obj.m) < 2:
