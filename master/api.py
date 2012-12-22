@@ -87,10 +87,8 @@ class Plugin():
         else:
             self.api.plugins[self.realname] = self
 
-    def loaded(self, plugin=None, module=None):
-        print type(plugin), type(module)
+    def loaded(self, module):
         self.mod = module
-        self.plug = plugin
         if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
     def apih(self, name):
@@ -121,8 +119,9 @@ class Plugin():
         return hook
 
     def reload(self):
+        print type(self.mod), self.realname
         self.unload()
-        self.plug = reload(self.plug)
+        self.mod = reload(self.mod)
         self.mod.plugin = self
         if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
@@ -327,20 +326,20 @@ class API(object):
             if not i[0] in ['.', '_'] and i.endswith('.py'):
                 i = i.split('.py')[0]
                 if self.hasPlugin(i): continue
-                p = __import__('plugins.%s' % i)
-                self.loadPlugin(i, p)
+                __import__('plugins.%s' % i)
+                self.loadPlugin(i)
 
     def hasPlugin(self, name):
         if name in self.plugins.keys():
             return True
         return False
 
-    def loadPlugin(self, name, p):
+    def loadPlugin(self, name):
         mod = sys.modules['plugins.%s' % name]
         if hasattr(mod, 'onBoot'): mod.onBoot()
         if name in self.plugins:
             print 'Calling .loaded() of %s' % name
-            self.plugins[name].loaded(plugin=p, module=mod)
+            self.plugins[name].loaded(mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
         for i in self.loops:
