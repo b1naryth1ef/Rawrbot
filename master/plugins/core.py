@@ -315,7 +315,7 @@ def cmdEditspam(obj):
     A.red.hset(s, 'data', json.dumps(obj.sess['data']))
     obj.reply('Edited spam #%s!' % obj.m[1])
 
-@P.cmd('viewspams', admin=True, usage='{cmd}', desc="Lists all spams and their details.")
+@P.cmd('spams', admin=True, usage='{cmd}', desc="Lists all spams and their details.")
 def cmdViewspam(obj):
     for key in A.red.keys('i.p.core.spam.*'):
         msg = json.loads(A.red.hget(key, 'data'))['msg']
@@ -335,10 +335,13 @@ def coreSpamAdd(nid, msg, chans, duration, timex, active=1):
 
 @P.apih('core_spam_push')
 def coreSpamPush(id, update_time=True):
-    print 'Pushing'
+    print 'Pushing %s' % id
     k = 'i.p.core.spam.%s' % id
     if update_time: A.red.hset(k, 'last',   time.time())
-    data = json.loads(A.red.hget(k, 'data'))
+    try: data = json.loads(A.red.hget(k, 'data'))
+    except:
+        print 'Failed to push spam "%s"!' % id
+        return
     for chan in data['chans']:
         _v = A.red.get('i.%s.chan.%s.cfg.spams' % (data['nid'], chan))
         if _v and not int(_v): continue

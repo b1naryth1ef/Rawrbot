@@ -2,7 +2,10 @@ import re, thread, json
 import sys, os, time
 import random
 
-class LooopingThread():
+class LoopingThread():
+    """
+    A thread that will constantly loop, with a set delay time.
+    """
     def __init__(self, func=None, delay=30):
         self.active = False
         self.func = func
@@ -24,6 +27,9 @@ class LooopingThread():
             time.sleep(self.delay)
 
 class FiredEvent():
+    """
+    An event that has happened, contains usefull data
+    """
     def __init__(self, api, name, data={}):
         self._name = name
         self._data = data
@@ -32,6 +38,9 @@ class FiredEvent():
         self.__dict__.update(data)
 
 class FiredCommand(FiredEvent):
+    """
+    Inherited from FiredEvent, contains usefull methods to quickly reply/etc to a FiredCommand event
+    """
     def reply(self, msg):
         if self.pm: self.privmsg(self.nick, msg)
         else: self.send(self.dest, '%s: %s' % (self.nick, msg))
@@ -78,10 +87,10 @@ class Plugin():
         else:
             self.api.plugins[self.realname] = self
 
-    def loaded(self, plug, mod):
-        print plug, mod
-        self.mod = mod
-        self.plug = plug
+    def loaded(self, plugin=None, module=None):
+        print type(plugin), type(module)
+        self.mod = module
+        self.plug = plugin
         if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
     def apih(self, name):
@@ -92,7 +101,7 @@ class Plugin():
 
     def loop(self, delay=30):
         def deco(func):
-            func.loop = LooopingThread(func=func, delay=delay)
+            func.loop = LoopingThread(func=func, delay=delay)
             self.api.loops.append(func.loop)
             return func.loop
         return deco
@@ -114,7 +123,7 @@ class Plugin():
     def reload(self):
         self.unload()
         self.plug = reload(self.plug)
-        #self.plug.plugin = self
+        self.mod.plugin = self
         if hasattr(self.mod, 'onLoad'): self.mod.onLoad()
 
     def unload(self):
@@ -318,20 +327,20 @@ class API(object):
             if not i[0] in ['.', '_'] and i.endswith('.py'):
                 i = i.split('.py')[0]
                 if self.hasPlugin(i): continue
-                plug = __import__('plugins.%s' % i)
-                self.loadPlugin(plug, i)
+                p = __import__('plugins.%s' % i)
+                self.loadPlugin(i, p)
 
     def hasPlugin(self, name):
         if name in self.plugins.keys():
             return True
         return False
 
-    def loadPlugin(self, plug, f):
-        mod = sys.modules['plugins.%s' % f]
+    def loadPlugin(self, name, p):
+        mod = sys.modules['plugins.%s' % name]
         if hasattr(mod, 'onBoot'): mod.onBoot()
-        if f in self.plugins:
-            print 'Calling .loaded() of %s' % f
-            self.plugins[f].loaded(plug, mod)
+        if name in self.plugins:
+            print 'Calling .loaded() of %s' % name
+            self.plugins[name].loaded(plugin=p, module=mod)
 
     def reloadPlugins(self, call=None, *args, **kwargs):
         for i in self.loops:
