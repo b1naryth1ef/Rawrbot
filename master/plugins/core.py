@@ -352,7 +352,7 @@ def coreSpamPush(id, update_time=True):
 @P.loop(55) #This gets out of sync slowley, do we care that much? Prolly not.
 def loopCall():
     for k in A.red.keys('i.p.core.spam.*'):
-        if float(A.red.hget(k, 'active')):
+        if A.red.hget(k, 'active').isdigit() and float(A.red.hget(k, 'active')):
             if float(A.red.hget(k, 'end')) != -1 and time.time() > float(A.red.hget(k, 'end')):
                 A.red.hset(k, 'active', 0)
                 continue
