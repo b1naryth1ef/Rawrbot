@@ -80,6 +80,7 @@ def cmdReport(obj):
 @P.cmd('rlist', gadmin=True, kwargs=True, kbool=['active'],
     usage='{cmd} active={bool}', desc="List all reports, use active bool to filter out closed reports.")
 def cmdRlist(obj):
+    if not len(A.red.keys('i.p.core.rep.*')): return obj.reply("No reports!")
     obj.reply('ALL REPORTS:')
     for key in A.red.keys('i.p.core.rep.*'):
         if not int(A.red.hget(key, 'active')) and not obj.kwargs.get('active', False): continue

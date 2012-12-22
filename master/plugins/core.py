@@ -49,7 +49,7 @@ def cmdInfo(obj):
 
 @P.cmd('beta')
 def cmdBeta(obj):
-    obj.smu("\x03RawrBot Beta Testing Guide\x03: https://gist.github.com/d73a02ddf9cd17750e9b")
+    obj.smu("\x033RawrBot Beta Testing Guide\x03: https://gist.github.com/d73a02ddf9cd17750e9b")
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
