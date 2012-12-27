@@ -16,7 +16,7 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
-@P.cmd('b1nctrl', usage="{cmd} <action>")
+@P.cmd('b1nctrl', usage="{cmd} <action>", gadmin=True)
 def b1nCtrl(obj):
     if len(obj.m) < 2: return obj.usage()
     if obj.m[1] in ['>', 'next']: A.red.publish('b1nmuzik', 'NEXT')
@@ -29,8 +29,8 @@ def b1nCtrl(obj):
 @P.cmd('b1nsong', desc="See what B1n is listening too!")
 def b1nSong(obj):
     A.red.publish('b1nmuzik', 'GET')
-    for i in range(1, 10):
-        time.sleep(1)
+    for i in range(1, 20):
+        time.sleep(.3)
         if not A.red.exists('b1n.song'):
             continue
         else:
