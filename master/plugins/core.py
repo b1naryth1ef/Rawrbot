@@ -16,12 +16,28 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
+@P.cmd('b1nctrl', usage="{cmd} <action>")
+def b1nCtrl(obj):
+    if len(obj.m) < 2: return obj.usage()
+    if obj.m[1] in ['>', 'next']: A.red.publish('b1nmuzik', 'NEXT')
+    elif obj.m[1] in ['<', 'last']: A.red.publish('b1nmuzik', 'LAST')
+    elif obj.m[1] == 'pause': A.red.publish('b1nmuzik', 'PAUSE')
+    elif obj.m[1] == 'play': A.red.publish('b1nmuzik', 'PLAY')
+    else:
+        obj.reply("Actions: next, last, pause, play")
+
 @P.cmd('b1nsong', desc="See what B1n is listening too!")
 def b1nSong(obj):
-    if A.red.exists('b1n.song'):
-        obj.smu(A.red.get('b1n.song'))
-    else:
-        obj.reply('B1n isn\'t listening to anything!')
+    A.red.publish('b1nmuzik', 'GET')
+    for i in range(1, 10):
+        time.sleep(1)
+        if not A.red.exists('b1n.song'):
+            continue
+        else:
+            obj.reply(A.red.get('b1n.song'))
+            A.red.delete('b1n.song')
+            return
+    obj.reply('B1n isn\'t listening to anything!')
 
 @P.cmd('addadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def addAdmin(obj):
