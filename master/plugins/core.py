@@ -81,7 +81,7 @@ def cmdBeta(obj):
 @P.cmd("hoot")
 def cmdHoot(obj):
     owl_strings = ['YOLO', 'g1nk0 doesn\'t life (c) anderson']
-    obj.smu('\x036H00t H00t Motherfucker, #owl-team swag!\x03 \x035%s\x03' % random.choice(owl_strings))
+    obj.smu('\x036H00t H00t Motherfucker, #owl-team swag!\x03 [\x035%s\x03]' % random.choice(owl_strings))
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
