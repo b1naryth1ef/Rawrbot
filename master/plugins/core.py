@@ -230,6 +230,9 @@ def cmdMsg(obj):
 def cmdStatus(obj): #@TODO Update
     A.red.delete('i.temp.res')
     num_workers = A.red.scard('i.%s.workers' % obj.nid)
+    num_work_total = 0
+    for key in A.red.keys('i.*.workers'):
+        num_work_total += A.red.scard(key)
     num_masters = A.red.llen('i.masters')
     num_chans, num_useru, num_usert = 0, 0, 0
     for chan in A.red.smembers('i.%s.chans' % obj.nid):
@@ -239,7 +242,7 @@ def cmdStatus(obj): #@TODO Update
     num_useru = A.red.scard('i.temp.res')
     upt = time.time()-float(A.red.get('i.master.uptime'))
     obj.reply('------ STATUS ------')
-    obj.reply("Workers: %s | Masters: %s" % (num_workers, num_masters))
+    obj.reply("Workers: %s (%s total) | Masters: %s" % (num_workers, num_work_total, num_masters))
     obj.reply("Users: %s | Unique: %s | Channels: %s" % (num_usert, num_useru, num_chans))
     obj.reply("Master uptime: %s" % upt)
 
