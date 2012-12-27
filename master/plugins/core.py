@@ -16,6 +16,13 @@ s_about = [
     "Additional help from: TheRick and neek"
 ]
 
+@P.cmd('b1nsong', desc="See what B1n is listening too!")
+def b1nSong(obj):
+    if A.red.exists('b1n.song'):
+        obj.reply(A.red.get('b1n.song'))
+    else:
+        obj.reply('B1n isn\'t listening to anything!')
+
 @P.cmd('addadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def addAdmin(obj):
     if len(obj.m) < 2: return obj.usage()
@@ -240,11 +247,9 @@ def cmdStatus(obj): #@TODO Update
         num_usert += A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
         A.red.sunionstore('i.temp.res', 'i.%s.chan.%s.users' % (obj.nid, chan), 'i.temp.res')
     num_useru = A.red.scard('i.temp.res')
-    upt = time.time()-float(A.red.get('i.master.uptime'))
     obj.reply('------ STATUS ------')
     obj.reply("Workers: %s (%s total) | Masters: %s" % (num_workers, num_work_total, num_masters))
     obj.reply("Users: %s | Unique: %s | Channels: %s" % (num_usert, num_useru, num_chans))
-    obj.reply("Master uptime: %s" % upt)
 
 @P.cmd('winfo', gadmin=True, usage="{cmd} <wid>", desc="Get info about an single worker")
 def cmdWinfo(obj):

@@ -39,11 +39,11 @@ class Parser(object):
                 if self.A.parseCommand(q): return
             self.A.fireEvent('CHANMSG', **q)
         elif q['tag'] == 'NAMES': #@TODO Cleanup
-            nickkey = self.red.get('i.%s.nickkey' % q['nid'])
-            if nickkey:
+            nickkey = self.red.get('i.%s.nickkey' % q['nid']).lower()
+            if nickkey: #@DEV this seems... dangerous?
                 for i in q['nicks']:
                     if i[0] == '@':
-                        if nickkey in i:
+                        if nickkey in i.lower():
                             id = int(i[-1])
                             self.red.set('i.%s.worker.%s.%s.op' % (q['nid'], id, q['chan']), 1)
                             continue
@@ -53,14 +53,16 @@ class Parser(object):
                     elif i[0] in ['&', '~']: i = i[1:].lower()
                     self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), i.lower())
                     self.red.sadd('i.%s.user.%s.chans' % (q['nid'], i.lower()), q['chan'])
-        elif q['tag'] == 'TOPIC': pass
+            else:
+                print 'Error parsing NAMES tag. [Namely, nickkey evals false!]'
+        elif q['tag'] == 'TOPIC': pass #@TODO track and store this
         elif q['tag'] == 'JOIN':
-            nickkey = self.red.get('i.%s.nickkey' % q['nid'])
-            if nickkey in q['nick']: return
+            nickkey = self.red.get('i.%s.nickkey' % q['nid']).lower()
+            if nickkey in q['nick'].lower(): return
             self.red.sadd('i.%s.chan.%s.users' % (q['nid'], q['chan']), q['nick'].lower())
             self.red.sadd('i.%s.user.%s.chans' % (q['nid'], q['nick'].lower()), q['chan'])
             self.A.fireEvent('JOIN', nick=q['nick'].lower(), chan=q['chan'], nid=q['nid'], id=q['id'])
-        elif q['tag'] == 'PART':
+        elif q['tag'] == 'PART': #@TODO Add logic to track when our OWN workers fail (prohax)
             self.userLeave(q)
             self.A.fireEvent('PART', nick=q['nick'].lower(), chan=q['chan'], msg=q['msg'], nid=q['nid'], id=q['id'])
         elif q['tag'] == 'KICK':
