@@ -190,6 +190,7 @@ class API(object):
     def isAdmin(self, data):
         nick = data['nick'].lower()
         print 'Admin check: %s' % data['nick']
+        print 'Host: %s' % data['host'].split('@')[-1].strip().lower()
         if self.red.sismember('i.%s.hadmins' % data['nid'], data['host'].split('@')[-1].strip().lower()):
             return True, True
         if not self.red.exists('i.%s.user.%s.auth' % (data['nid'], nick)):
