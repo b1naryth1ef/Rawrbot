@@ -19,7 +19,7 @@ s_about = [
 @P.cmd('b1nsong', desc="See what B1n is listening too!")
 def b1nSong(obj):
     if A.red.exists('b1n.song'):
-        obj.reply(A.red.get('b1n.song'))
+        obj.smu(A.red.get('b1n.song'))
     else:
         obj.reply('B1n isn\'t listening to anything!')
 
