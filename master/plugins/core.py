@@ -66,6 +66,10 @@ def rmvAdmin(obj):
     else:
         return obj.reply('User %s is not an admin!' % obj.m[1].lower())
 
+@P.cmd('source')
+def cmdSource(obj):
+    obj.smu("\x033RawrBot Source Code\x03: hhttps://github.com/b1naryth1ef/Rawrbot")
+
 @P.cmd('info')
 def cmdInfo(obj):
     obj.smu("\x033RawrBot Info\x03: https://gist.github.com/d6c95c0733a5d9ef8c13")
@@ -76,7 +80,8 @@ def cmdBeta(obj):
 
 @P.cmd("hoot")
 def cmdHoot(obj):
-    obj.smu('\x036H00t H00t Motherfucker, #owl-team pride!\x03')
+    owl_strings = ['YOLO', 'g1nk0 doesn\'t life (c) anderson']
+    obj.smu('\x036H00t H00t Motherfucker, #owl-team swag!\x03 \x035%s\x03' % random.choice(owl_strings))
 
 @P.cmd('derp', nolist=True)
 def cmdDerp(obj):
