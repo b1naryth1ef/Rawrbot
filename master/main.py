@@ -7,55 +7,48 @@ import api
 default_cfg = {
     'networks': [
         {
-            'host':'irc.quakenet.org',
-            'chans':['b1naryth1ef', 'rawrbot', ['rawrbot.admins', 'l33t']],
-            'auth':'',
-            'lock_workers':0,
-            'plugins':[]
+            'host': 'irc.quakenet.org',
+            'chans': ['b1naryth1ef', 'rawrbot', ['rawrbot.admins', 'l33t']],
+            'auth': '',
+            'lock_workers': 0,
+            'plugins': []
         },
-        {
-            'host':'irc.undernet.org',
-            'chans':['corner'],
-            'auth':'',
-            'lock_workers':1,
-            'plugins':['core']
-        }
     ],
 }
 
 rand = lambda: random.randint(11111, 99999)
 chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
 
-red = redis.Redis(host="hydr0.com", password="")
+red = redis.Redis(host="hydr0.com", password=os.getenv("REDISPASS"))
 cfg = ConfigFile(name="config", default=default_cfg, path=['.'])
 api.A = api.API(red)
 
 class Worker(object):
     def __init__(self, id, net):
-        self.id = id
-        self.nick = net.nickkey+'-%s' % self.id
-        self.nid = net.id
-        self.net = net
-        self.chans = []
-        self.ready = False
-        self.waitPing = False
+        self.id = id #This workers ID
+        self.nick = net.nickkey+'-%s' % self.id #This workers IRC name
+        self.nid = net.id #This workers network ID
+        self.net = net #This workers network object
+        self.chans = [] #Chans this user is in
+        self.ready = False #Is the worker booted?
+        self.waitPing = False #Ping-tracking bool
 
-    def push(self, tag, **k):
+    def push(self, tag, **k): #Push a message to the worker
         k['tag'] = tag
         red.rpush('i.%s.worker.%s' % (self.nid, self.id), json.dumps(k))
 
-    def setup(self, reply):
+    def setup(self, reply): #Boot the worker
         red.set('i.%s.worker.%s.uptime' % (self.nid, self.id), time.time())
         red.publish(reply, json.dumps({
-                'id': self.id,
-                'nid': self.nid,
-                'server': self.net.name,
-                'auth': self.net.auth,
-                'nick': self.nick
-            }))
+            'id': self.id,
+            'nid': self.nid,
+            'server': self.net.name,
+            'auth': self.net.auth,
+            'nick': self.nick
+        }))
         thread.start_new_thread(self.getReady, ())
 
-    def join(self, chan, send=True):
+    def join(self, chan, send=True): #Join a channel
         red.sadd('i.%s.worker.%s.chans' % (self.nid, self.id), chan)
         self.chans.append(chan)
         self.net.channels[chan] = self
@@ -63,14 +56,13 @@ class Worker(object):
         else: pw = None
         if send: self.push('JOIN', chan=chan, pw=pw)
 
-    def part(self, chan, msg, send=True):
+    def part(self, chan, msg, send=True): #Part a channel
         red.srem('i.%s.worker.%s.chans' % (self.nid, self.id), chan)
         self.chans.remove(chan)
         self.net.channels[chan] = None
         if send: self.push('PART', chan=chan, msg=msg)
 
-    def ping(self):
-        #print "Pinging Worker #%s [%s]" % (self.id, self.nid)
+    def ping(self): #Ping the worker
         if not self.ready: return
         self.waitPing = True
         self.push('PING')
@@ -78,20 +70,20 @@ class Worker(object):
         if self.waitPing:
             self.quit('Timed out!')
 
-    def quit(self, msg="!!"):
+    def quit(self, msg="!!"): #Shutdown the worker
         print 'Worker #%s is quitting... %s' % (self.id, msg)
         for i in self.chans:
             self.net.channels[i] = None
         self.push('SHUTDOWN', msg=msg)
         self.net.rmvWorker(self.id)
 
-    def getReady(self):
+    def getReady(self): #Threaded call to check if worker is booted
         time.sleep(20)
         if not self.ready:
             print 'Worker %s going down for not getting ready in time!' % self.id
             self.quit('Didnt get ready in time')
 
-    def parse(self, msg):
+    def parse(self, msg): #Parse a message from the worker
         if msg['tag'] == 'READY':
             print "Worker %s is now ready!" % self.id
             self.ready = True
@@ -100,13 +92,11 @@ class Worker(object):
             self.waitPing = False
         elif msg['tag'] == 'BYE':
             self.quit("Shutdown on worker side")
-        else:
-            print msg
 
 class Network(object):
     def __init__(self, id, name, master, plugins=[], channels=[], auth=""):
-        self.id = id
-        self.name = name
+        self.id = id #Network ID
+        self.name = name #Network Name
         self.master = master
         self.channels = {}
         self.pws = []
@@ -125,7 +115,7 @@ class Network(object):
             self.channels[i.replace('#', '')] = None
 
     def getNumWorkers(self):
-        return len([i for i in self.workers.values() if i != None])
+        return len([i for i in self.workers.values() if i is not None])
 
     def boot(self):
         for chan in self.channels.keys():
@@ -141,7 +131,7 @@ class Network(object):
 
     def quit(self, msg):
         for i in self.workers.values():
-            if i != None: i.quit(msg)
+            if i is not None: i.quit(msg)
 
     def write(self, chan, msg):
         if chan in self.channels.keys():
@@ -155,11 +145,11 @@ class Network(object):
         red.delete('i.%s.chan.%s.ops' % (self.id, chan))
         m = None
         for i in self.workers.values():
-            if i == None: continue
-            if m == None: m = i
+            if i is None: continue
+            if m is None: m = i
             elif len(m.chans) > len(i.chans): m = i
         self.channels[chan] = m
-        if m != None:
+        if m is not None:
             m.join(chan)
             red.sadd('i.%s.chans' % self.id, chan)
 
@@ -173,7 +163,7 @@ class Network(object):
     def addWorker(self, reply):
         if None in self.workers.values():
             for k in self.workers:
-                if self.workers[k] == None:
+                if self.workers[k] is None:
                     self.workers[k] = Worker(k, self)
                     break
         elif len(self.workers):
@@ -190,7 +180,7 @@ class Network(object):
         self.workers[k].setup(reply)
 
     def setupWorker(self, k):
-        q = lambda: [i for i in self.workers.values() if i != None]
+        q = lambda: [i for i in self.wPorkers.values() if i is not None]
         if len(self.workers) <= 1:
             for chan in self.channels.keys():
                 self.workers[k].join(chan)
@@ -202,11 +192,11 @@ class Network(object):
             c = chunks(self.channels.keys(), limit)
             print c
             for pos, w in enumerate(self.workers.values()):
-                if w == None: continue
+                if w is None: continue
                 if pos+1 > len(c): break
                 for i in c[pos]:
                     if i in w.chans: continue
-                    if self.channels[i] == None: continue
+                    if self.channels[i] is None: continue
                     self.channels[i].part(i, 'Bot Swapping...')
                     w.join(i)
 
@@ -220,7 +210,7 @@ class Network(object):
 
     def ping(self):
         for i in self.workers.values():
-            if i == None: continue
+            if i is None: continue
             thread.start_new_thread(i.ping, ())
 
     def recover(self, m):
@@ -297,7 +287,7 @@ class Master(object):
         while self.active:
             if self.isMaster:
                 for i in self.networks.values():
-                    if i != None:
+                    if i is not None:
                         i.ping()
             else:
                 c = rand()
@@ -334,11 +324,9 @@ class Master(object):
                             print 'Error, we have a <1 ID'
                             sys.exit()
                 elif i['tag'] == 'UPD':
-                    print 'Recieved update: "%s"' % i['msg'] #@TODO send this to admin channels through hook
                     os.popen('git pull origin deploy')
                     os.execl(sys.executable, *([sys.executable]+sys.argv))
                     sys.exit()
-                    #self.parser.A.reloadPlugins()
                 else:
                     print i
         s.unsubscribe('irc.m.%s' % self.uid)
@@ -354,14 +342,14 @@ class Master(object):
                 except:
                     print '>>>', msg
                     continue
-                if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],)) #@NOTE This is threaded so we can sleep
+                if msg['tag'] == 'HI': thread.start_new_thread(self.addWorker, (msg['resp'],))
                 elif msg['tag'] == 'ID': self.networks[msg['nid']].recover(msg)
                 elif msg['tag'] == 'JOIN': self.networks[msg['nid']].joinChannel(msg['chan'])
                 elif msg['tag'] == 'PART': self.networks[msg['nid']].partChannel(msg['chan'], msg['msg'])
                 elif msg['tag'] == 'QUIT': self.quit(msg=msg['msg'])
                 elif 'nid' in msg and 'id' in msg:
                     if msg['id'] not in self.networks[msg['nid']].workers.keys(): continue
-                    if self.networks[msg['nid']].workers[msg['id']] != None:
+                    if self.networks[msg['nid']].workers[msg['id']] is not None:
                         self.networks[msg['nid']].workers[msg['id']].parse(msg)
 
         self.sub.unsubscribe('irc.master')
@@ -372,10 +360,10 @@ class Master(object):
         m = None
         for i in self.networks.values():
             if i.max_workers != 0 and i.getNumWorkers() >= i.max_workers: continue
-            if m == None: m = i
+            if m is None: m = i
             if m.getNumWorkers() > i.getNumWorkers(): m = i
-        if m != None:
-            while len([i for i in m.workers.values() if i != None and i.ready == False]):
+        if m is not None:
+            while len([i for i in m.workers.values() if i is not None and i.ready is False]):
                 time.sleep(1)
             m.addWorker(reply)
 

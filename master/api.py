@@ -158,7 +158,6 @@ class API(object):
     def callHook(self, hook, *args, **kwargs):
         if hook in self.apis.keys():
             return self.apis[hook](*args, **kwargs)
-        #@TODO Error here?
 
     def loadLoops(self):
         print 'Starting loops!'

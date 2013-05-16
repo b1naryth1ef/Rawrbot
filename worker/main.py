@@ -2,7 +2,7 @@ from connection import Connection
 from collections import deque
 import redis, json
 import random, thread
-import sys, time
+import sys, time, os
 
 class Worker(object):
     def __init__(self):
@@ -26,7 +26,7 @@ class Worker(object):
         self.lastPong = 0
         self.pinged = False
 
-        self.red = redis.Redis(host="hydr0.com", password="")
+        self.red = redis.Redis(host="hydr0.com", password=os.getenv("REDISPASS"))
 
         while self.keepAlive:
             print 'Starting Loop!'
