@@ -146,6 +146,7 @@ class API(object):
         self.hooks = {}
         self.loops = []
         self.canLoop = False
+        self.defaultThrottle = 1.3 #@TODO Load this from the network plz
 
     def addConfig(self, opt):
         if opt not in self.configs:
@@ -356,5 +357,8 @@ class API(object):
         if call:
             call(*args, **kwargs)
         if self.canLoop: self.loadLoops()
+
+    def throttle(self):
+        return time.sleep(self.defaultThrottle)
 
 A = None

@@ -8,36 +8,6 @@ s_actions = ['slap', 'smite', 'wack', 'pwn', 'rm -rf', 'destroy', 'obliterate', 
 s_bodyparts = ['tentacle', 'face', 'head', 'dick', 'eye', 'inner thigh']
 s_tools = ['gun', 'neek', 'bread', 'black hole', 'stick', 'knife', 'rawrbot', 'python', 'hashtag', 'a.out', 'http://']
 s_opmsgs = ['Enjoy your +o', 'IMA PUT MY OP IN YOU', 'There you go', '<3', 'Now can we mode +b *!*@* plz?', 'Whose the best bot evar?']
-s_about = [
-    "RawrBot is a fast, smart and distributed IRC bot built for the Urban Terror Community by the RawrBot team.",
-    "Lead Developer: B1naryTh1ef",
-    "Lead PR/Manager: ButteredBread",
-    "Assistant PR: Nova``",
-    "Additional help from: TheRick and neek"
-]
-
-@P.cmd('b1nctrl', usage="{cmd} <action>", gadmin=True)
-def b1nCtrl(obj):
-    if len(obj.m) < 2: return obj.usage()
-    if obj.m[1] in ['>', 'next']: A.red.publish('b1nmuzik', 'NEXT')
-    elif obj.m[1] in ['<', 'last']: A.red.publish('b1nmuzik', 'LAST')
-    elif obj.m[1] == 'pause': A.red.publish('b1nmuzik', 'PAUSE')
-    elif obj.m[1] == 'play': A.red.publish('b1nmuzik', 'PLAY')
-    else:
-        obj.reply("Actions: next, last, pause, play")
-
-@P.cmd('b1nsong', desc="See what B1n is listening too!")
-def b1nSong(obj):
-    A.red.publish('b1nmuzik', 'GET')
-    for i in range(1, 20):
-        time.sleep(.3)
-        if not A.red.exists('b1n.song'):
-            continue
-        else:
-            obj.reply(A.red.get('b1n.song'))
-            A.red.delete('b1n.song')
-            return
-    obj.reply('B1n isn\'t listening to anything!')
 
 @P.cmd('addadmin', usage="{cmd} name chan=#mychan", gadmin=True, kwargs=True)
 def addAdmin(obj):
@@ -70,14 +40,6 @@ def rmvAdmin(obj):
 def cmdSource(obj):
     obj.smu("\x033RawrBot Source Code\x03: hhttps://github.com/b1naryth1ef/Rawrbot")
 
-@P.cmd('info')
-def cmdInfo(obj):
-    obj.smu("\x033RawrBot Info\x03: https://gist.github.com/d6c95c0733a5d9ef8c13")
-
-@P.cmd('beta')
-def cmdBeta(obj):
-    obj.smu("\x033RawrBot Beta Testing Guide\x03: https://gist.github.com/d73a02ddf9cd17750e9b")
-
 @P.cmd("hoot")
 def cmdHoot(obj):
     owl_strings = ['YOLO', 'g1nk0 doesn\'t life (c) anderson']
@@ -105,13 +67,6 @@ def cmdUpdate(obj):
     A.reloadPlugins(obj.reply, 'Update complete!')
     A.red.set("i.maintmode", int(0))
 
-@P.cmd('about')
-def cmdAbout(obj):
-    obj.pmu('About RawrBot:')
-    for msg in s_about:
-        obj.pmu('  '+msg)
-        time.sleep(1)
-
 @P.cmd('channels', gadmin=True)
 def cmdChannels(obj):
     obj.pmu('Channels List: (this may take a second)')
@@ -119,7 +74,7 @@ def cmdChannels(obj):
         numu = A.red.scard('i.%s.chan.%s.users' % (obj.nid, chan))
         numop = A.red.scard('i.%s.chan.%s.ops' % (obj.nid, chan))
         obj.pmu('[#%s] Users: %s | OPs: %s' % (chan, numu, numop))
-        time.sleep(1)
+        A.throttle()
 
 @P.cmd('commands', gadmin=True)
 def cmdCommands(obj):
@@ -130,7 +85,7 @@ def cmdCommands(obj):
         i = A.commands[name]
         if i['nolist']: continue
         obj.pmu('  [%s%s]: %s' % (A.prefix, name, i['desc']))
-        time.sleep(1)
+        A.throttle()
 
 @P.cmd('opme', admin=True, usage='{cmd}')
 def cmdOpme(obj):
@@ -157,7 +112,7 @@ def cmdMaintence(obj):
 def cmdConfig(obj):
     #if not obj.op and not obj.admin: return obj.reply("You must be an admin or op to set channel config values!")
     if len(obj.m) < 3: return obj.usage()
-    if obj.kwargs.get('value', None) == None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
+    if obj.kwargs.get('value', None) is None and obj.m[1] != 'get': return obj.reply('You must give a value for kwarg "value"')
     v = obj.m[2].strip().lower()
     if v not in A.configs: return obj.reply('Unknown config option %s!' % v)
     k = 'i.%s.chan.%s.cfg.%s' % (obj.nid, obj.dest.replace('#', ''), v)
